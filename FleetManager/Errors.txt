@@ -1,0 +1,19 @@
+﻿513 The Organisational Unit referenced by this UID does not exist.
+514 Client ID not specified for FleetManager Connection.
+515 Client ID not specified for FleetManager Organisation Unit.
+516 Client ID not specified for FleetManager Person.
+517	Client ID not specified for FleetManager Phone.
+518 Invalid Date format specified in Bill.
+519 The Person referenced by this UID does not exist.
+520 The Phone referenced by this UID does not exist.
+521 The Table prefix could not be retrieved for this Service type.
+522 Failed to insert a record in BillDetails.
+523 Failed to insert a record in BillData.
+524 Folder does not exist.
+525 The Database ConnectionString could not be retrieved.
+526 The Database could not be opened.
+527 Failed to execute FindService stored procedure.
+528 Failed to retrieve Attribute for Directory Object
+529 The Login referenced by this UID does not exist.
+600 Supplied product code is invalid
+

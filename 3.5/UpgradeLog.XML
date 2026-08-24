@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="Infrastructure">
+</Property><Property Name="Solution File" Value="Z:\1027 - CADS 4\51 - Infrastructure (Utility)\F - Development\Infrastructure\Infrastructure.sln">
+</Property><Property Name="Date" Value="Thursday, 5 May 2011">
+</Property><Property Name="Time" Value="7:53 AM">
+</Property></Properties><Event ErrorLevel="0" Project="Tracing" Source="Tracing\Tracing.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Tracing" Source="Tracing\Tracing.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Licensing" Source="Licensing\Licensing.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Licensing" Source="Licensing\Licensing.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="FileTransfer" Source="FileTransfer\FileTransfer.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="FileTransfer" Source="FileTransfer\FileTransfer.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="ICSharpCode.SharpZLib" Source="..\..\..\..\Libraries\CSharpZipLib\SrcSamples\src\ICSharpCode.SharpZLib.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="ICSharpCode.SharpZLib" Source="..\..\..\..\Libraries\CSharpZipLib\SrcSamples\src\ICSharpCode.SharpZLib.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Test" Source="Test\Test.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Test" Source="Test\Test.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Config" Source="Config\Config.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Config" Source="Config\Config.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Security" Source="Security\Security.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Security" Source="Security\Security.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Setup" Source="Setup\Setup.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Setup" Source="Setup\Setup.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Directory" Source="Directory\Directory.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Directory" Source="Directory\Directory.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="ResetPassword" Source="ResetPassword\ResetPassword.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="ResetPassword" Source="ResetPassword\ResetPassword.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Compression" Source="Compression\Compression.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Compression" Source="Compression\Compression.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Scheduling" Source="Scheduling\Scheduling.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Scheduling" Source="Scheduling\Scheduling.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Utility" Source="..\Utility\Utility\Utility.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Utility" Source="..\Utility\Utility\Utility.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Encryption" Source="Encryption\Encryption.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Encryption" Source="Encryption\Encryption.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="InstallHelper" Source="InstallHelper\InstallHelper.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="InstallHelper" Source="InstallHelper\InstallHelper.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="XML" Source="XML\XML.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="XML" Source="XML\XML.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="SQL" Source="SQL\SQL.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="SQL" Source="SQL\SQL.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="ZipFile" Source="ZipFile\ZipFile.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="ZipFile" Source="ZipFile\ZipFile.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Common" Source="Common\Common.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Common" Source="Common\Common.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Logging" Source="Logging\Logging.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Logging" Source="Logging\Logging.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Network" Source="Network\Network.vbproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="Network" Source="Network\Network.vbproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="Infrastructure.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="Infrastructure.sln" Description="Converted">
+</Event><Event ErrorLevel="0" Project="Tracing" Source="Tracing\Tracing.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Licensing" Source="Licensing\Licensing.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="FileTransfer" Source="FileTransfer\FileTransfer.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="ICSharpCode.SharpZLib" Source="..\..\..\..\Libraries\CSharpZipLib\SrcSamples\src\ICSharpCode.SharpZLib.csproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Test" Source="Test\Test.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Config" Source="Config\Config.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Security" Source="Security\Security.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Setup" Source="Setup\Setup.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Directory" Source="Directory\Directory.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="ResetPassword" Source="ResetPassword\ResetPassword.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Compression" Source="Compression\Compression.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Scheduling" Source="Scheduling\Scheduling.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Utility" Source="..\Utility\Utility\Utility.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Encryption" Source="Encryption\Encryption.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="InstallHelper" Source="InstallHelper\InstallHelper.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="XML" Source="XML\XML.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="SQL" Source="SQL\SQL.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="ZipFile" Source="ZipFile\ZipFile.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Common" Source="Common\Common.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Logging" Source="Logging\Logging.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event><Event ErrorLevel="0" Project="Network" Source="Network\Network.vbproj" Description="Scan complete: Upgrade not required for project files.">
+</Event></UpgradeLog>

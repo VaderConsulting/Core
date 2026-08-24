@@ -1,0 +1,3640 @@
+﻿#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.0.0.0    26 Jun 09    DR          Release       Initial release
+' 1.0.0.1    26 Aug 09    DR          Enhancement   Added support for Login Class
+'                                     Bugfix        Changed all variables from Integer or Long to Int32
+' 1.0.0.2    27 Aug 09    DR          Enhancement   Changed all calls to Execute, ExecuteNonQuery and ExecuteStoredProcedure to specify Target
+' 1.0.2.4                 DK          BugFix	    QueryString error with '('
+' 1.0.3.8    25 Jan 10    DR          Enhancement   Added SQLVersion Property
+'                                                   Added ability to detect the current SQL Server version.  This is saved in SQLVersion.
+'                                                   Required when performing SELECT TOP queries as the syntax changes between SQL Server versions.
+' 1.0.3.9    02 Feb 10    DR          BugFix        Person and OrgUnit Updates were incorrectly setting the ID's to UID.
+' 1.0.4.11   22 Feb 10    DK          Enhancement   Added Function GetPersonID(FirstName, LastName) = Search via firstname and lastname
+' 1.0.4.12   23 Feb 10    DK          Enhancement   Added Function GetOrganisationalunitID(Name, ParentID) = Search via name and parentid
+' 1.0.4.13   24 Feb 10    DK          Enhancement   Added Function GetPersonUID(FirstName, LastName) = Search via firstname and lastname
+' 1.0.5.14   26 Feb 10    DK          Enhancement   Added new feature to Save function; now supports the ability to return what type of action was perform ie: Update, Insert or None
+' 1.0.7.16   22 Apr 10    DR          Bugfix        Modified Load(Person) to use GetPersonByID.
+' 1.0.10.20  09 Aug 10    DR          Change        Renamed GetMaximunImportQueueID to GetMaximumImportQueueID
+' 1.0.11.21  11 Aug 10    DR          Bugfix        Updated GetBillCode and CountBillsCreated to properly use the correct service prefix                                    
+' 1.0.13.23  22 Nov 10    DR          Change        Removed GetTranslatedConnectionString 
+' 1.0.15.25  23 Mar 11    DR          Enhancement   Added new overload for GetServicesWithRentalCharges to accept Month and Year
+' 1.0.15.26  10 Jun 11    AA          Enhancement   Added condition on the GetServicesWithRentalCharges procedure to check for the Month and Year processed.
+
+#End Region
+
+#Region " Imports "
+
+Imports System.Reflection
+Imports System.Reflection.Assembly
+Imports System.Data.SqlClient
+Imports FleetManager.Definitions
+Imports System.Text
+
+#End Region
+
+Public Class FMConnection
+
+    Private _ClientID As Int32 = 0
+    Private _Database As FMDatabase
+    Private _ObjectIsValid As Boolean = False
+    Private _SQLVersion As String = ""
+
+    Public Enum Parameter As Int32
+        GUID =REDACTED
+        CostCode = 2
+    End Enum
+
+#Region " Properties "
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            _ClientID = value
+        End Set
+    End Property
+
+    Public ReadOnly Property ObjectIsValid() As Boolean
+        Get
+            Return _ObjectIsValid
+        End Get
+    End Property
+
+    Public ReadOnly Property SQLVersion() As String
+        Get
+            Return _SQLVersion
+        End Get
+    End Property
+
+#End Region
+
+
+    Public Sub New(ByVal ClientID As Int32, ByVal Database As FMDatabase)
+        Initialize(ClientID, Database)
+        'If ClientID > 0 Then
+        '    ' TODO:  Search for this clientID.
+        '    _ClientID = ClientID
+        '    _Database = Database
+        'Else
+        '    Err.Raise(vbObjectError + 514, GetExecutingAssembly.GetName.Name, "Client ID not specified for FleetManager Connection.")
+        'End If
+    End Sub
+
+    Public Function ConvertGUIDToString(ByRef GUIDString() As Byte) As String
+        Dim ReturnString As String = ""
+
+        Try
+            For Count = 0 To GUIDString.Length - 1
+                ReturnString = ReturnString + Hex(GUIDString(Count))
+            Next
+        Catch ex As Exception
+            ' Hopefully we don't ever get here.  If so, we don't want to die!
+        End Try
+        Return ReturnString
+    End Function
+
+    ''' <summary>
+    ''' This function counts the number of bills
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function CountBillsCreated(ByVal Prefix As String) As Int32
+        Dim QueryString As String = "select count(*) from " & Prefix & "billdetails"
+        Dim DataSet As DataSet
+        Dim RecordCount As Int32 = 0
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            RecordCount = DataSet.Tables(0).Rows(0).Item(0)
+        End If
+
+        DataSet = Nothing
+
+        Return RecordCount
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing BillDetails in Fleetmanager database
+    ''' </summary>
+    ''' <param name="ClientID"></param>
+    ''' <param name="Provider"></param>
+    ''' ''' <param name="BillDate"></param>
+    ''' <returns>Unique ID (UID) of a Bill</returns>
+    ''' <remarks></remarks>
+    Public Function GetBillDetailsUID(ByVal ClientID As Int32, ByVal Provider As Int32, ByVal BillDate As DateTime, ByVal Prefix As String) As Int32
+        Dim QueryString As String = ""
+        Dim BillDateString As String = BillDate.Year & BillDate.Month.ToString.PadLeft(2, "0") & BillDate.Day.ToString.PadLeft(2, "0")
+        Dim UID As Int32 = 0
+        Dim Dataset As DataSet
+
+        ' TODO:  Get the correct SQL
+        QueryString = "SELECT UID FROM " & Prefix & "BillDetails WITH (NOLOCK) WHERE  ProviderID = " & Provider & " and convert(char(8),billdate,112) = '" & BillDateString & "' " & _
+        " and ClientID = " & ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            UID =REDACTED
+        End If
+
+        Dataset = Nothing
+
+        Return UID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager Bill
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <returns>Unique ID (UID) of User</returns>
+    ''' <remarks></remarks>
+    Private Function GetBillUID(ByVal GUID As String) As Int32
+        Dim QueryString As String = ""
+        Dim UID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' TODO:  Get the correct SQL
+        QueryString = "SELECT UID FROM Users WITH (NOLOCK) WHERE GenericUID ='" & GUID & "' AND EndDate IS NULL'"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            UID =REDACTED
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return UID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve all Trunks from the database
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetAllTrunks() As DataSet
+        Dim QueryString As String = ""
+
+        QueryString = "select isnull(RouteID,0) as RouteID,isnull(TrunkID,0) as TrunkID, "
+        QueryString &= "isnull(TrunkNumber,'') as TrunkNumber,isnull(TrunkName,'') as TrunkName, "
+        QueryString &= "isnull(Comment,'') as Comment from CurrentTrunkView where clientid = " & _ClientID.ToString & " "
+        QueryString &= "order by isnull(RouteID,0),isnull(TrunkID,0),isnull(TrunkNumber,''),isnull(TrunkName,'') "
+
+        Dim Dataset As DataSet
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Return Dataset
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve all routes from the database
+    ''' </summary>
+    ''' <returns>List of all routes per site</returns>
+    ''' <remarks></remarks>
+    Public Function GetAllRoutes() As DataSet
+
+        Dim QueryString As String = ""
+        QueryString = "select isnull(Pabxid,0) as Pabxid,isnull(Routeid,0) as Routeid,isnull(routenumber,'') as RouteNumber,isnull(routename,'') as RouteName,  "
+        QueryString &= "isnull(TrunkCount,0) as TrunkCount,isnull(Comment,'') as Comment from  "
+        QueryString &= "CurrentRouteView where clientid = " & _ClientID.ToString & " "
+        QueryString &= "order by pabxid,routeid,isnull(routenumber,''), "
+        QueryString &= "isnull(routename,''), isnull(TrunkCount,0)  "
+
+        Dim Dataset As DataSet
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Return Dataset
+    End Function
+
+    ''' <summary>
+    ''' Retrieve all sites from the database for a particular cliet
+    ''' </summary>
+    ''' <returns>List of Sites</returns>
+    ''' <remarks></remarks>
+    Public Function GetAllSites() As DataSet
+        Dim QueryString As String = ""
+        QueryString = "Select isnull(PabxID,0) as PabxID, isnull(PabxCode,'') as PabxCode, "
+        QueryString &= "isnull(PabxName,'') as PabxName, isnull(Comment,'') as Comment from "
+        QueryString &= "CurrentPABXView where Clientid = " & _ClientID.ToString & " "
+        QueryString &= "order by isnull(PabxName,'')"
+        Dim Dataset As DataSet
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Return Dataset
+    End Function
+
+
+    ''' <summary>
+    ''' Get Call UID from BillData table of Fleetmanager database
+    ''' </summary>
+    ''' <param name="CallClass"></param>
+    ''' <param name="Prefix"></param>
+    ''' <returns>Unique ID (UID) of a Call</returns>
+    ''' <remarks></remarks>
+    Public Function GetCallUID(ByVal CallClass As Calls, ByVal Prefix As String) As Int32
+        Dim QueryString As String
+        Dim UID As Int32 = 0
+        Dim DataSet As DataSet
+
+        QueryString = "Select UID from " & Prefix & "BillData WITH (NOLOCK) where BillID = '" & _
+        CallClass.BillID & "' and ClientID = '" & CallClass.ClientID & "' and ServiceID = '" & _
+        CallClass.ServiceID & "' and UserID = '" & CallClass.UserID & "' and OrgUnitID = '" & _
+        CallClass.OrgUnitID & "' and phoneNO = '" & CallClass.CallNo & "' and callDate = '" & _
+        CallClass.Calldate & "' and callTime = " & CallClass.CallTime & " and calltrunk = '" & _
+        CallClass.CallTrunk & "' and calltruckgroup = '" & CallClass.CallTruckGroup & "' and accesscode = '" & _
+        CallClass.AccessCode & "' and site = '" & CallClass.Site & "'"
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            UID =REDACTED
+        End If
+
+        DataSet = Nothing
+
+        Return UID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve all Clients in FleetManager
+    ''' </summary>
+    ''' <returns>Collection of Client</returns>
+    ''' <remarks></remarks>
+    Public Function GetClientList() As Collections.SortedList
+        Dim QueryString As String = ""
+        Dim Clients As New Collections.SortedList
+        Dim UID As Int32 = 0
+        Dim Dataset As DataSet
+
+        QueryString = "SELECT * from CurrentClientView WITH (NOLOCK)"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        For Each Record As DataRow In Dataset.Tables(0).Rows
+            Dim TheClient As New Client
+
+            TheClient.AccountCode = Record("ClientAccountCode") & ""
+            TheClient.BillingContact = Record("BillingContact") & ""
+            TheClient.ChangeID = IIf(IsDBNull(Record("ChangeID")), -1, Record("ChangeID"))
+            TheClient.ClientManager = Record("STEClientManager") & ""
+            TheClient.ClientAdministratorID = IIf(IsDBNull(Record("ClientAdminUserID")), -1, Record("ClientAdminUserID"))
+            TheClient.Comments = Record("Comments") & ""
+            TheClient.CostCentre = Record("ClientCostCentre") & ""
+            TheClient.Custom1 = Record("Custom1") & ""
+            TheClient.Custom2 = Record("Custom2") & ""
+            TheClient.Custom3 = Record("Custom3") & ""
+            TheClient.Custom4 = Record("Custom4") & ""
+            TheClient.EmailAddress = Record("Email") & ""
+            TheClient.Fax = Record("Fax") & ""
+            TheClient.ID = IIf(Record("ClientID"), -1, Record("ClientID"))
+            TheClient.Name = Record("ClientName")
+            TheClient.Phone = Record("Phone") & ""
+            If IsDBNull(Record("StartDate")) Then
+                TheClient.StartDate = Date.MinValue
+            Else
+                TheClient.StartDate = CDate(Record("StartDate"))
+            End If
+            TheClient.UID =REDACTED"UID")), -1, Record("UID"))
+
+            Clients.Add(Clients.Count + 1, TheClient)
+        Next
+
+        Dataset = Nothing
+
+        Return Clients
+    End Function
+
+    ''' <summary>
+    ''' Retrieve the ClientName based on the Client ID provided
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetClientName(ByVal ClientID As Int32) As String
+        Dim QueryString As String
+        Dim DataSet As DataSet
+
+        QueryString = "Select isnull(ClientName,'') as ClientName from CurrentClientView where Clientid = " & ClientID.ToString
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Return DataSet.Tables(0).Rows(0).Item(0).ToString
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve the ClientName based on the current Client ID
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetClientName() As String
+        Return GetClientName(_ClientID)
+    End Function
+
+    ''' <summary>
+    ''' Retrieves the Email Address of the person to notify the status of the Process.
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetEmailNotification() As String
+
+        Dim EmailAddress As String = ""
+        Dim QueryString As String = "select isnull(text1,'') as Text1 from clientfeatures where clientid = " & _ClientID.ToString & " and description = 'Email Notification'"
+        Dim DataSet As DataSet
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            EmailAddress = DataSet.Tables(0).Rows(0).Item(0)
+        End If
+
+        DataSet = Nothing
+
+        Return EmailAddress
+    End Function
+
+    ''' <summary>
+    ''' This function returns all the graphgroups for a given service type
+    ''' </summary>
+    ''' <param name="Prefix"></param>
+    ''' <returns>ReturnedList</returns>
+    ''' <remarks>A. Agustin 16/06/2010</remarks>
+    Public Function GetGraphGroups(ByVal Prefix As String) As Collections.SortedList
+        Dim DataSet As DataSet
+        Dim QueryString As String = ""
+        Dim ReturnedList As New Collections.SortedList
+
+        QueryString = "select isnull(UID,0) as UID,isnull(GraphGroup,'') as GraphGroup from " & Prefix & "graphgroups order by uid"
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        For Each Row As DataRow In DataSet.Tables(0).Rows
+            ReturnedList.Add(Row("UID"), Row("GraphGroup"))
+        Next
+
+        DataSet = Nothing
+
+        Return ReturnedList
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID (ID) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <returns>ID of User</returns>
+    ''' <remarks></remarks>
+    Public Function GetID(ByVal User As Person) As Int32
+
+        If User.GUID.Trim.Length = 0 Then
+            Return GetPersonID(User.FirstName, User.Surname)
+        Else
+            Return GetPersonID(User.GUID)
+        End If
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID (ID) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="ParameterName"></param>
+    ''' <param name="ParameterValue"></param>
+    ''' <param name="ParameterIsString"></param>
+    ''' <returns>ID of User</returns>
+    ''' <remarks></remarks>
+    Public Function GetID(ByVal ObjectType As FleetManagerObjectType, ByVal ParameterName As String, ByVal ParameterValue As String, ByVal ParameterIsString As Boolean) As Int32
+
+        Select Case ObjectType
+            Case FleetManagerObjectType.Asset
+            Case FleetManagerObjectType.Logon
+            Case FleetManagerObjectType.OrganisationUnit
+            Case FleetManagerObjectType.Person
+                Return GetPersonID(ParameterName, ParameterValue, ParameterIsString)
+            Case FleetManagerObjectType.Phone
+        End Select
+
+
+        'If User.GUID.Trim.Length = 0 Then
+        '    Return GetPersonID(User.FirstName, User.Surname)
+        'Else
+        '    Return GetPersonID(User.GUID)
+        'End If
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager Service
+    ''' </summary>
+    ''' <param name="Service"></param>
+    ''' <returns>Unique ID (UID) of Service</returns>
+    ''' <remarks></remarks>
+    Public Function GetID(ByVal Service As Phone) As Int32
+        Return GetPhoneID(Service.Number)
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID of existing FleetManager OU
+    ''' </summary>
+    ''' <param name="OU"></param>
+    ''' <returns>ID of OU</returns>
+    ''' <remarks></remarks>
+    Public Function GetID(ByVal OU As OrganisationalUnit) As Int32
+
+        If OU.ParentOrganisationalUnitID > 0 And OU.Name.Length > 0 Then
+            Return GetOrganisationalUnitID(OU.Name, OU.ParentOrganisationalUnitID)
+        ElseIf OU.GUID.Trim.Length > 0 Then
+            Return GetOrganisationalUnitID(OU.GUID, Parameter.GUID)
+        ElseIf OU.CostCode.Trim.Length > 0 Then
+            Return GetOrganisationalUnitID(OU.CostCode, Parameter.CostCode)
+        Else
+            Return 0
+        End If
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID (ID) of existing FleetManager Login
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <returns>ID of Login</returns>
+    ''' <remarks></remarks>
+    Public Function GetID(ByVal User As Login) As Int32
+        Return GetLoginID(User.GUID)
+    End Function
+
+    ''' <summary>
+    ''' Retrieve existing FleetManager Login by ID
+    ''' </summary>
+    ''' <param name="ID"></param>
+    ''' <returns>Person</returns>
+    ''' <remarks></remarks>
+    Public Function GetLoginbyID(ByVal ID As Int32) As Login ' TODO: Requires testing
+        Dim QueryString As String = ""
+        Dim User As New Login(_ClientID, Me)
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT * " & _
+                      "FROM CurrentUserLoginView WITH (NOLOCK) " & _
+                      "WHERE (ID=" & ID & ")"
+
+        Dataset = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            User.UID =REDACTED"UID")), 0, Dataset.Tables(0).Rows(0).Item("UID"))
+            User.LoginID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LoginID")), Nothing, Dataset.Tables(0).Rows(0).Item("LoginID"))
+            ' -----------
+            User.StartDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("StartDate")), Date.MinValue, Dataset.Tables(0).Rows(0).Item("StartDate"))
+            User.EndDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("EndDate")), Nothing, Dataset.Tables(0).Rows(0).Item("EndDate"))
+            User.SiteID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("SiteID")), "", Dataset.Tables(0).Rows(0).Item("SiteID"))
+            User.LoginName = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LoginName")), "", Dataset.Tables(0).Rows(0).Item("LoginName"))
+            User.Password =REDACTED"Password")), "", Dataset.Tables(0).Rows(0).Item("Password"))
+            User.PasswordExpiryDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PasswordExp")), Nothing, Dataset.Tables(0).Rows(0).Item("PasswordExp"))
+            User.ClientID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ClientID")), 0, Dataset.Tables(0).Rows(0).Item("ClientID"))
+            User.UserID =REDACTED"UserID")), 0, Dataset.Tables(0).Rows(0).Item("UserID"))
+            User.ChangeID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ChangeID")), 0, Dataset.Tables(0).Rows(0).Item("ChangeID"))
+            User.Home = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Home")), "", Dataset.Tables(0).Rows(0).Item("Home"))
+            User.UserRoleID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("UserRole")), 0, Dataset.Tables(0).Rows(0).Item("UserRole"))
+            User.FirstLogin = CBool(IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("FirstLogin")), True, Dataset.Tables(0).Rows(0).Item("FirstLogin")))
+            User.LastLogin = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LastLogin")), Nothing, Dataset.Tables(0).Rows(0).Item("LastLogin"))
+            User.OrgUnitID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitID")), 0, Dataset.Tables(0).Rows(0).Item("OrgUnitID"))
+            User.UserActive = CBool(IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("UserActive")), False, Dataset.Tables(0).Rows(0).Item("UserActive")))
+            User.Status = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Status")), 0, Dataset.Tables(0).Rows(0).Item("Status"))
+            User.PhoneNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PhoneNumber")), "", Dataset.Tables(0).Rows(0).Item("PhoneNumber"))
+            User.MobileNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Mobile")), "", Dataset.Tables(0).Rows(0).Item("Mobile"))
+            User.FacsimileNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("fax")), "", Dataset.Tables(0).Rows(0).Item("fax"))
+            User.EmailAddress = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Email")), "", Dataset.Tables(0).Rows(0).Item("Email"))
+            User.HideAllocated = CBool(IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("HideAllocated")), False, Dataset.Tables(0).Rows(0).Item("HideAllocated")))
+            User.RPP = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("RPP")), 0, Dataset.Tables(0).Rows(0).Item("RPP"))
+            User.MarkupSecurity = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("MarkupSecurity")), "", Dataset.Tables(0).Rows(0).Item("MarkupSecurity"))
+            User.MarkupDisplay = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("MarkupDisplay")), "", Dataset.Tables(0).Rows(0).Item("MarkupDisplay"))
+            User.GUID =REDACTED"GenericUID")), "", Dataset.Tables(0).Rows(0).Item("GenericUID"))
+
+            User.IsDirty = False
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return User
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve existing FleetManager Login by UID
+    ''' </summary>
+    ''' <param name="UID"></param>
+    ''' <returns>Person</returns>
+    ''' <remarks></remarks>
+    Public Function GetLoginbyUID(ByVal UID As Int32) As Login ' TODO: Requires testing
+        Dim QueryString As String = ""
+        Dim User As New Login(_ClientID, Me)
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT * " & _
+                      "FROM UserLogin WITH (NOLOCK) " & _
+                      "WHERE (EndDate IS NULL) AND (UID="REDACTED")"
+
+        Dataset = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            User.UID =REDACTED"UID")), 0, Dataset.Tables(0).Rows(0).Item("UID"))
+            User.LoginID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LoginID")), Nothing, Dataset.Tables(0).Rows(0).Item("LoginID"))
+            ' -----------
+            User.StartDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("StartDate")), Date.MinValue, Dataset.Tables(0).Rows(0).Item("StartDate"))
+            User.EndDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("EndDate")), Nothing, Dataset.Tables(0).Rows(0).Item("EndDate"))
+            User.SiteID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("SiteID")), "", Dataset.Tables(0).Rows(0).Item("SiteID"))
+            User.LoginName = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LoginName")), "", Dataset.Tables(0).Rows(0).Item("LoginName"))
+            User.Password =REDACTED"Password")), "", Dataset.Tables(0).Rows(0).Item("Password"))
+            User.PasswordExpiryDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PasswordExp")), Nothing, Dataset.Tables(0).Rows(0).Item("PasswordExp"))
+            User.ClientID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ClientID")), 0, Dataset.Tables(0).Rows(0).Item("ClientID"))
+            User.UserID =REDACTED"UserID")), 0, Dataset.Tables(0).Rows(0).Item("UserID"))
+            User.ChangeID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ChangeID")), 0, Dataset.Tables(0).Rows(0).Item("ChangeID"))
+            User.Home = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Home")), "", Dataset.Tables(0).Rows(0).Item("Home"))
+            User.UserRoleID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("UserRole")), 0, Dataset.Tables(0).Rows(0).Item("UserRole"))
+            User.FirstLogin = CBool(IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("FirstLogin")), True, Dataset.Tables(0).Rows(0).Item("FirstLogin")))
+            User.LastLogin = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LastLogin")), Nothing, Dataset.Tables(0).Rows(0).Item("LastLogin"))
+            User.OrgUnitID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitID")), 0, Dataset.Tables(0).Rows(0).Item("OrgUnitID"))
+            User.UserActive = CBool(IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("UserActive")), False, Dataset.Tables(0).Rows(0).Item("UserActive")))
+            User.Status = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Status")), 0, Dataset.Tables(0).Rows(0).Item("Status"))
+            User.PhoneNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PhoneNumber")), "", Dataset.Tables(0).Rows(0).Item("PhoneNumber"))
+            User.MobileNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Mobile")), "", Dataset.Tables(0).Rows(0).Item("Mobile"))
+            User.FacsimileNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("fax")), "", Dataset.Tables(0).Rows(0).Item("fax"))
+            User.EmailAddress = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Email")), "", Dataset.Tables(0).Rows(0).Item("Email"))
+            User.HideAllocated = CBool(IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("HideAllocated")), False, Dataset.Tables(0).Rows(0).Item("HideAllocated")))
+            User.RPP = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("RPP")), 0, Dataset.Tables(0).Rows(0).Item("RPP"))
+            User.MarkupSecurity = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("MarkupSecurity")), "", Dataset.Tables(0).Rows(0).Item("MarkupSecurity"))
+            User.MarkupDisplay = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("MarkupDisplay")), "", Dataset.Tables(0).Rows(0).Item("MarkupDisplay"))
+            User.GUID =REDACTED"GenericUID")), "", Dataset.Tables(0).Rows(0).Item("GenericUID"))
+
+            User.IsDirty = False
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return User
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager Login
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <returns>Unique ID (UID) of Login</returns>
+    ''' <remarks></remarks>
+    Private Function GetLoginID(ByVal GUID As String) As Int32 ' TODO: Requires testing
+        Dim QueryString As String = ""
+        Dim LoginID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT LoginID FROM CurrentUserLoginView WITH (NOLOCK) WHERE GenericUID ='" & GUID & "' AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            LoginID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return LoginID
+
+    End Function
+
+    Public Function GetClientAdminEmailAddress() As String
+        Dim QueryString As String
+        Dim DataSet As DataSet
+
+        QueryString = "Select isnull(Email,'') as Email from CurrentClientView where Clientid = " & ClientID.ToString
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Return DataSet.Tables(0).Rows(0).Item(0).ToString
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager Login
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <returns>Unique ID (UID) of User</returns>
+    ''' <remarks></remarks>
+    Private Function GetLoginUID(ByVal GUID As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT UID FROM UserLogin WITH (NOLOCK) WHERE GenericUID ='" & GUID & "' AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' This function will get the maximum importqueueid in the billdetails table
+    ''' </summary>
+    ''' <returns>ReturnedValue</returns>
+    ''' <remarks>A. Agustin 08/06/2010</remarks>
+    Public Function GetMaximumImportQueueID(ByVal Prefix As String) As Int32
+        Dim ReturnedValue As Int32 = 99999
+        Dim Dataset As DataSet
+
+        Dim QueryString As String = "select max(isnull(importqueueid,0)) as importqueueid from " & Prefix & "billdetails "
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ReturnedValue = Dataset.Tables(0).Rows(0).Item(0)
+        End If
+
+
+        Return ReturnedValue
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve existing FleetManager OU by ID
+    ''' </summary>
+    ''' <param name="ID"></param>
+    ''' <returns>OU</returns>
+    ''' <remarks></remarks>
+    Public Function GetOrganisationalUnitbyID(ByVal ID As String) As OrganisationalUnit
+        Dim QueryString As String = ""
+        Dim OU As New OrganisationalUnit(_ClientID, Me)
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT ChangeID,ClientID,OrgUnitCostCentre,Custom1,Custom2,Custom3,Custom4,OrgUnitIndividualBudget,EndDate," & _
+                             "GenericUID,OrgUnitID,OrgUnitName,OrgUnitParent,RebillingPlanID,OrgUnitExcludeDirectory,StartDate,UID,OrgUnitStreetAddress,OrgUnitSuburb,OrgUnitState,OrgUnitCountry,OrgUnitPostCode " & _
+                      "FROM CurrentClientOrganisationUnitView WITH (NOLOCK) " & _
+                      "WHERE (OrgUnitID=" & ID & ") "
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            OU.ChangeID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ChangeID")), 0, Dataset.Tables(0).Rows(0).Item("ChangeID"))
+            OU.ClientID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ClientID")), 0, Dataset.Tables(0).Rows(0).Item("ClientID"))
+            OU.CostCode = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitCostCentre")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitCostCentre"))
+            OU.Custom1 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom1")), "", Dataset.Tables(0).Rows(0).Item("Custom1"))
+            OU.Custom2 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom2")), "", Dataset.Tables(0).Rows(0).Item("Custom2"))
+            OU.Custom3 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom3")), "", Dataset.Tables(0).Rows(0).Item("Custom3"))
+            OU.Custom4 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom4")), "", Dataset.Tables(0).Rows(0).Item("Custom4"))
+            OU.DefaultPersonBudget = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitIndividualBudget")), 0.0, Dataset.Tables(0).Rows(0).Item("OrgUnitIndividualBudget"))
+            OU.EndDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("EndDate")), Nothing, Dataset.Tables(0).Rows(0).Item("EndDate"))
+            OU.GUID =REDACTED"GenericUID")), "", Dataset.Tables(0).Rows(0).Item("GenericUID"))
+            OU.ID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitID")), 0, Dataset.Tables(0).Rows(0).Item("OrgUnitID"))
+            OU.Name = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitName")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitName"))
+            OU.ParentOrganisationalUnitID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitParent")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitParent"))
+            OU.RebillingPlanID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("RebillingPlanID")), 0, Dataset.Tables(0).Rows(0).Item("RebillingPlanID"))
+            OU.Silent = CBool(Not (IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitExcludeDirectory")), False, Dataset.Tables(0).Rows(0).Item("OrgUnitExcludeDirectory"))))
+            OU.StartDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("StartDate")), Nothing, Dataset.Tables(0).Rows(0).Item("StartDate"))
+            OU.UID =REDACTED"UID")), 0, Dataset.Tables(0).Rows(0).Item("UID"))
+
+            OU.StreetAddress = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitStreetAddress")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitStreetAddress"))
+            OU.Suburb = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitSuburb")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitSuburb"))
+            OU.State = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitState")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitState"))
+            OU.Country = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitCountry")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitCountry"))
+            OU.PostCode = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitPostCode")), "", Dataset.Tables(0).Rows(0).Item("OrgUnitPostCode"))
+
+            _ObjectIsValid = True
+            OU.IsDirty = False
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return OU
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID of existing FleetManager OU
+    ''' </summary>
+    ''' <param name="Value"></param>
+    ''' <returns>ID of OU</returns>
+    ''' <remarks></remarks>
+    Private Function GetOrganisationalUnitID(ByVal Value As String, ByVal ParameterType As Parameter) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        Select Case ParameterType
+            Case Parameter.GUID
+                QueryString = "SELECT OrgUnitID FROM CurrentClientOrganisationUnitView WITH (NOLOCK) WHERE GenericUID ='" & Value & "' AND ClientID = " & _ClientID
+            Case Parameter.CostCode
+                QueryString = "SELECT OrgUnitID FROM CurrentClientOrganisationUnitView WITH (NOLOCK) WHERE OrgUnitCostCentre ='" & Value & "' AND ClientID = " & _ClientID
+        End Select
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+            'trace.writeline("...Found the OU")
+        Else
+            _ObjectIsValid = False
+            'trace.writeline("...No OU Found")
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    '''' <summary>
+    '''' Retrieve ID of existing FleetManager OU
+    '''' </summary>
+    '''' <param name="CostCode"></param>
+    '''' <returns>ID of OU</returns>
+    '''' <remarks></remarks>
+    'Private Function GetOrganisationalUnitID(ByVal CostCode As String) As Int32
+    '    Dim QueryString As String = ""
+    '    Dim ID As Int32 = 0
+    '    Dim Dataset As DataSet
+
+    '    'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+    '    QueryString = "SELECT OrgUnitID FROM CurrentClientOrganisationUnitView WITH (NOLOCK) WHERE OrgUnitCostCode = '" & CostCode.Replace("'", "''") & "' AND ClientID = " & _ClientID
+
+    '    Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+    '    If Dataset.Tables(0).Rows.Count > 0 Then
+    '        ID = Dataset.Tables(0).Rows(0).Item(0)
+    '        _ObjectIsValid = True
+    '        'trace.writeline("...Found the OU")
+    '    Else
+    '        _ObjectIsValid = False
+    '        'trace.writeline("...No OU Found")
+    '    End If
+
+    '    Dataset = Nothing
+
+    '    Return ID
+
+    'End Function
+
+    ''' <summary>
+    ''' Retrieve ID of existing FleetManager OU
+    ''' </summary>
+    ''' <param name="Name"></param>
+    ''' <param name="ParentID"></param>
+    ''' <returns>ID of OU</returns>
+    ''' <remarks></remarks>
+    Private Function GetOrganisationalUnitID(ByVal Name As String, ByVal ParentID As Int32) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT OrgUnitID FROM CurrentClientOrganisationUnitView WITH (NOLOCK) WHERE OrgUnitName = '" & Name.Replace("'", "''") & "' AND OrgUnitParent = " & ParentID & " AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+            'trace.writeline("...Found the OU")
+        Else
+            _ObjectIsValid = False
+            'trace.writeline("...No OU Found")
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID of existing FleetManager OU
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <returns>ID of OU</returns>
+    ''' <remarks></remarks>
+    Private Function GetOrganisationalUnitUID(ByVal GUID As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT UID FROM CurrentClientOrganisationUnitView WITH (NOLOCK) WHERE GenericUID ='" & GUID & "' AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+            'trace.writeline("...Found the OU")
+        Else
+            _ObjectIsValid = False
+            'trace.writeline("...No OU Found")
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve all OrganisationUnits in FleetManager
+    ''' </summary>
+    ''' <returns>Collection of OrganisationUnits</returns>
+    ''' <remarks></remarks>
+    Public Function GetOrganisationUnits() As Collections.SortedList
+        Dim QueryString As String = ""
+        Dim ReturnedCollection As New Collections.SortedList
+        Dim UID As Int32 = 0
+        Dim Dataset As DataSet
+
+        QueryString = "SELECT * FROM CurrentClientOrganisationUnitView WITH (NOLOCK) WHERE ClientID = " & _ClientID.ToString
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        For Each Record As DataRow In Dataset.Tables(0).Rows
+            Dim OU As New OrganisationalUnit(_ClientID)
+            Dim RowCounter As Integer = 0
+
+            OU.ChangeID = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("ChangeID")), 0, Dataset.Tables(0).Rows(RowCounter).Item("ChangeID"))
+            OU.ClientID = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("ClientID")), 0, Dataset.Tables(0).Rows(RowCounter).Item("ClientID"))
+            OU.CostCode = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitCostCentre")), "", Dataset.Tables(RowCounter).Rows(RowCounter).Item("OrgUnitCostCentre"))
+            OU.Country = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitCountry")), "", Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitCountry"))
+            OU.Custom1 = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("Custom1")), "", Dataset.Tables(0).Rows(RowCounter).Item("Custom1"))
+            OU.Custom2 = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("Custom2")), "", Dataset.Tables(0).Rows(RowCounter).Item("Custom2"))
+            OU.Custom3 = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("Custom3")), "", Dataset.Tables(0).Rows(RowCounter).Item("Custom3"))
+            OU.Custom4 = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("Custom4")), "", Dataset.Tables(0).Rows(RowCounter).Item("Custom4"))
+            OU.DefaultPersonBudget = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitIndividualBudget")), 0.0, Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitIndividualBudget"))
+            OU.EndDate = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("EndDate")), Nothing, Dataset.Tables(0).Rows(RowCounter).Item("EndDate"))
+            OU.GUID =REDACTED"GenericUID")), "", Dataset.Tables(0).Rows(RowCounter).Item("GenericUID"))
+            OU.ID = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitID")), 0, Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitID"))
+            OU.Name = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitName")), "", Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitName"))
+            OU.ParentOrganisationalUnitID = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitParent")), "", Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitParent"))
+            OU.PostCode = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitPostCode")), "", Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitPostCode"))
+            OU.RebillingPlanID = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("RebillingPlanID")), 0, Dataset.Tables(0).Rows(RowCounter).Item("RebillingPlanID"))
+            OU.Silent = CBool(Not (IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitExcludeDirectory")), False, Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitExcludeDirectory"))))
+            OU.StartDate = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("StartDate")), Nothing, Dataset.Tables(0).Rows(RowCounter).Item("StartDate"))
+            OU.State = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitState")), "", Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitState"))
+            OU.StreetAddress = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitStreetAddress")), "", Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitStreetAddress"))
+            OU.Suburb = IIf(IsDBNull(Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitSuburb")), "", Dataset.Tables(0).Rows(RowCounter).Item("OrgUnitSuburb"))
+            OU.UID =REDACTED"UID")), 0, Dataset.Tables(0).Rows(RowCounter).Item("UID"))
+
+            OU.IsDirty = False
+
+            ReturnedCollection.Add(OU.UID, OU.Clone)
+
+            RowCounter += 1
+
+        Next
+        Dataset = Nothing
+
+        Return ReturnedCollection
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve existing FleetManager Person by UID
+    ''' </summary>
+    ''' <param name="ID"></param>
+    ''' <returns>Person</returns>
+    ''' <remarks></remarks>
+    Public Function GetPersonbyID(ByVal ID As Int32) As Person
+        Dim QueryString As String = ""
+        Dim User As New Person(_ClientID, Me)
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT Budget,LocationBuilding,ChangeID,ClientID,CostCode,Custom1,Custom2,Custom3,Custom4,Custom5,Custom6,Custom7,Custom8,Custom9," & _
+                             "Custom10,Custom11,Custom12,Custom13,Custom14,Email,EndDate,FirstName,GenericUID,ListInDirectory," & _
+                             "StartDate,Status,LastName,PositionTitle,UID,UserID,OrgUnitID,MiddleName,Salutation,SecondaryContactNumber " & _
+                      "FROM CurrentUsersView WITH (NOLOCK) " & _
+                      "WHERE (UserID="REDACTED")"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            User.Budget = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Budget")), 0, Dataset.Tables(0).Rows(0).Item("Budget"))
+            User.Building = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LocationBuilding")), "", Dataset.Tables(0).Rows(0).Item("LocationBuilding"))
+            User.ChangeID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ChangeID")), 0, Dataset.Tables(0).Rows(0).Item("ChangeID"))
+            User.ClientID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ClientID")), 0, Dataset.Tables(0).Rows(0).Item("ClientID"))
+            User.CostCode = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("CostCode")), "", Dataset.Tables(0).Rows(0).Item("CostCode"))
+            User.OrganisationalUnitID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitID")), 0, Dataset.Tables(0).Rows(0).Item("OrgUnitID"))
+            User.Custom1 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom1")), "", Dataset.Tables(0).Rows(0).Item("Custom1"))
+            User.Custom2 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom2")), "", Dataset.Tables(0).Rows(0).Item("Custom2"))
+            User.Custom3 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom3")), "", Dataset.Tables(0).Rows(0).Item("Custom3"))
+            User.Custom4 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom4")), "", Dataset.Tables(0).Rows(0).Item("Custom4"))
+            User.Custom5 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom5")), "", Dataset.Tables(0).Rows(0).Item("Custom5"))
+            User.Custom6 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom6")), "", Dataset.Tables(0).Rows(0).Item("Custom6"))
+            User.Custom7 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom7")), "", Dataset.Tables(0).Rows(0).Item("Custom7"))
+            User.Custom8 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom8")), "", Dataset.Tables(0).Rows(0).Item("Custom8"))
+            User.Custom9 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom9")), "", Dataset.Tables(0).Rows(0).Item("Custom9"))
+            User.Custom10 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom10")), "", Dataset.Tables(0).Rows(0).Item("Custom10"))
+            User.Custom11 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom11")), "", Dataset.Tables(0).Rows(0).Item("Custom11"))
+            User.Custom12 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom12")), "", Dataset.Tables(0).Rows(0).Item("Custom12"))
+            User.Custom13 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom13")), "", Dataset.Tables(0).Rows(0).Item("Custom13"))
+            User.Custom14 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom14")), "", Dataset.Tables(0).Rows(0).Item("Custom14"))
+            User.EmailAddress = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Email")), "", Dataset.Tables(0).Rows(0).Item("Email"))
+            User.EndDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("EndDate")), #12:00:00 AM#, Dataset.Tables(0).Rows(0).Item("EndDate"))
+            User.FirstName = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("FirstName")), "", Dataset.Tables(0).Rows(0).Item("FirstName"))
+            User.GUID =REDACTED"GenericUID")), "", Dataset.Tables(0).Rows(0).Item("GenericUID"))
+            User.Silent = CBool(Not IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ListInDirectory")), "", Dataset.Tables(0).Rows(0).Item("ListInDirectory")))
+            User.StartDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("StartDate")), #12:00:00 AM#, Dataset.Tables(0).Rows(0).Item("StartDate"))
+            User.Status = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Status")), "", Dataset.Tables(0).Rows(0).Item("Status"))
+            User.Surname = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LastName")), "", Dataset.Tables(0).Rows(0).Item("LastName"))
+            User.Title = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PositionTitle")), "", Dataset.Tables(0).Rows(0).Item("PositionTitle"))
+            User.UID =REDACTED"UID")), 0, Dataset.Tables(0).Rows(0).Item("UID"))
+            User.ID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("UserID")), 0, Dataset.Tables(0).Rows(0).Item("UserID"))
+            User.MiddleName = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("MiddleName")), "", Dataset.Tables(0).Rows(0).Item("MiddleName"))
+            User.Salutation = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Salutation")), "", Dataset.Tables(0).Rows(0).Item("Salutation"))
+            User.SecondaryContactNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("SecondaryContactNumber")), "", Dataset.Tables(0).Rows(0).Item("SecondaryContactNumber"))
+
+            User.Valid = True
+            User.IsDirty = False
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return User
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve existing FleetManager Person by UID
+    ''' </summary>
+    ''' <param name="UID"></param>
+    ''' <returns>Person</returns>
+    ''' <remarks></remarks>
+    Public Function GetPersonbyUID(ByVal UID As Int32) As Person
+        Dim QueryString As String = ""
+        Dim User As New Person(_ClientID, Me)
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT Budget,LocationBuilding,ChangeID,ClientID,CostCode,Custom1,Custom2,Custom3,Custom4,Custom5,Custom6,Custom7,Custom8,Custom9," & _
+                             "Custom10,Custom11,Custom12,Custom13,Custom14,Email,EndDate,FirstName,GenericUID,ListInDirectory," & _
+                             "StartDate,Status,LastName,PositionTitle,UID,UserID,OrgUnitID,MiddleName,Salutation,SecondaryContactNumber " & _
+                      "FROM Users WITH (NOLOCK) " & _
+                      "WHERE (UID="REDACTED")"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            User.Budget = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Budget")), 0, Dataset.Tables(0).Rows(0).Item("Budget"))
+            User.Building = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LocationBuilding")), "", Dataset.Tables(0).Rows(0).Item("LocationBuilding"))
+            User.ChangeID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ChangeID")), 0, Dataset.Tables(0).Rows(0).Item("ChangeID"))
+            User.ClientID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ClientID")), 0, Dataset.Tables(0).Rows(0).Item("ClientID"))
+            User.CostCode = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("CostCode")), "", Dataset.Tables(0).Rows(0).Item("CostCode"))
+            User.OrganisationalUnitID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitID")), 0, Dataset.Tables(0).Rows(0).Item("OrgUnitID"))
+            User.Custom1 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom1")), "", Dataset.Tables(0).Rows(0).Item("Custom1"))
+            User.Custom2 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom2")), "", Dataset.Tables(0).Rows(0).Item("Custom2"))
+            User.Custom3 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom3")), "", Dataset.Tables(0).Rows(0).Item("Custom3"))
+            User.Custom4 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom4")), "", Dataset.Tables(0).Rows(0).Item("Custom4"))
+            User.Custom5 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom5")), "", Dataset.Tables(0).Rows(0).Item("Custom5"))
+            User.Custom6 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom6")), "", Dataset.Tables(0).Rows(0).Item("Custom6"))
+            User.Custom7 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom7")), "", Dataset.Tables(0).Rows(0).Item("Custom7"))
+            User.Custom8 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom8")), "", Dataset.Tables(0).Rows(0).Item("Custom8"))
+            User.Custom9 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom9")), "", Dataset.Tables(0).Rows(0).Item("Custom9"))
+            User.Custom10 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom10")), "", Dataset.Tables(0).Rows(0).Item("Custom10"))
+            User.Custom11 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom11")), "", Dataset.Tables(0).Rows(0).Item("Custom11"))
+            User.Custom12 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom12")), "", Dataset.Tables(0).Rows(0).Item("Custom12"))
+            User.Custom13 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom13")), "", Dataset.Tables(0).Rows(0).Item("Custom13"))
+            User.Custom14 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Custom14")), "", Dataset.Tables(0).Rows(0).Item("Custom14"))
+            User.EmailAddress = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Email")), "", Dataset.Tables(0).Rows(0).Item("Email"))
+            User.EndDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("EndDate")), #12:00:00 AM#, Dataset.Tables(0).Rows(0).Item("EndDate"))
+            User.FirstName = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("FirstName")), "", Dataset.Tables(0).Rows(0).Item("FirstName"))
+            User.GUID =REDACTED"GenericUID")), "", Dataset.Tables(0).Rows(0).Item("GenericUID"))
+            User.Silent = CBool(Not IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ListInDirectory")), "", Dataset.Tables(0).Rows(0).Item("ListInDirectory")))
+            User.StartDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("StartDate")), #12:00:00 AM#, Dataset.Tables(0).Rows(0).Item("StartDate"))
+            User.Status = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Status")), "", Dataset.Tables(0).Rows(0).Item("Status"))
+            User.Surname = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("LastName")), "", Dataset.Tables(0).Rows(0).Item("LastName"))
+            User.Title = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PositionTitle")), "", Dataset.Tables(0).Rows(0).Item("PositionTitle"))
+            User.UID =REDACTED"UID")), 0, Dataset.Tables(0).Rows(0).Item("UID"))
+            User.ID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("UserID")), 0, Dataset.Tables(0).Rows(0).Item("UserID"))
+            User.MiddleName = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("MiddleName")), "", Dataset.Tables(0).Rows(0).Item("MiddleName"))
+            User.Salutation = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Salutation")), "", Dataset.Tables(0).Rows(0).Item("Salutation"))
+            User.SecondaryContactNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("SecondaryContactNumber")), "", Dataset.Tables(0).Rows(0).Item("SecondaryContactNumber"))
+
+            User.Valid = True
+            User.IsDirty = False
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return User
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (ID) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <returns>Unique ID (ID) of User</returns>
+    ''' <remarks></remarks>
+    Private Function GetPersonID(ByVal GUID As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT UserID FROM CurrentUsersView WITH (NOLOCK) WHERE GenericUID ='" & GUID & "' AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID (FirstName, LastName) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="FirstName"></param>
+    ''' <param name="LastName"></param>
+    ''' <returns>ID of User</returns>
+    ''' <remarks></remarks>
+    Public Function GetPersonID(ByVal FirstName As String, ByVal LastName As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT UserID FROM CurrentUsersView WITH (NOLOCK) WHERE (FirstName ='" & FirstName.Replace("'", "''") & "' AND LastName = '" & LastName.Replace("'", "''") & "') AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID (ParameterName, ParameterValue, ParameterIsString) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="ParameterName"></param>
+    ''' <param name="ParameterValue"></param>
+    ''' <param name="ParameterIsString"></param>
+    ''' <returns>ID of User</returns>
+    ''' <remarks></remarks>
+    Public Function GetPersonID(ByVal ParameterName As String, ByVal ParameterValue As String, ByVal ParameterIsString As Boolean) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        If ParameterIsString Then
+            QueryString = "SELECT UserID FROM CurrentUsersView WITH (NOLOCK) WHERE " & ParameterName & "='" & ParameterValue.Replace("'", "''") & "' AND ClientID = " & _ClientID
+        Else
+            QueryString = "SELECT UserID FROM CurrentUsersView WITH (NOLOCK) WHERE " & ParameterName & "=" & ParameterValue.Replace("'", "''") & " AND ClientID = " & _ClientID
+        End If
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="ParameterName"></param>
+    ''' <param name="ParameterValue"></param>
+    ''' <param name="ParameterIsString"></param>
+    ''' <returns>Unique ID (UID) of User</returns>
+    ''' <remarks></remarks>
+    Private Function GetPersonUID(ByVal ParameterName As String, ByVal ParameterValue As String, ByVal ParameterIsString As Boolean) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        If ParameterIsString Then
+            QueryString = "SELECT UID FROM CurrentUsersView WITH (NOLOCK) WHERE " & ParameterName & "='" & ParameterValue.Replace("'", "''") & "' AND ClientID = " & _ClientID
+        Else
+            QueryString = "SELECT UID FROM CurrentUsersView WITH (NOLOCK) WHERE " & ParameterName & "=" & ParameterValue.Replace("'", "''") & " AND ClientID = " & _ClientID
+        End If
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="FirstName"></param>
+    ''' <param name="LastName"></param>
+    ''' <returns>Unique ID (UID) of User</returns>
+    ''' <remarks></remarks>
+    Private Function GetPersonUID(ByVal FirstName As String, ByVal LastName As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT UID FROM CurrentUsersView WITH (NOLOCK) WHERE (FirstName ='" & FirstName.Replace("'", "''") & "' AND LastName = '" & LastName.Replace("'", "''") & "') AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager User
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <returns>Unique ID (UID) of User</returns>
+    ''' <remarks></remarks>
+    Private Function GetPersonUID(ByVal GUID As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT UID FROM CurrentUsersView WITH (NOLOCK) WHERE GenericUID ='" & GUID & "' AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve existing FleetManager Phone by UID
+    ''' </summary>
+    ''' <param name="UID"></param>
+    ''' <returns>Phone</returns>
+    ''' <remarks></remarks>
+    Public Function GetPhonebyUID(ByVal UID As String) As Phone
+        Dim QueryString As String = ""
+        Dim Service As New Phone(_ClientID, Me)
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT ProviderAccountNumber,Budget,ChangeID,ClientID,CostCode,StartDate,EndDate,Feature1,Feature2,Feature3,Feature4," & _
+                             "Feature5,Feature6,Feature7,Feature8,Feature9,Feature0,GenericUID,NetworkTypeID,ServiceNumber,OrgUnitID,UserID," & _
+                             "PlanID,PrimaryServiceID,RebillingPlanID,ServiceID,ServiceType,ListInDirectory,Spare1,Spare2,Spare3,Spare4,Spare5," & _
+                             "Status,UID,ServiceProviderID,Comments " & _
+                      "FROM Service WITH (NOLOCK) " & _
+                      "WHERE (UID="REDACTED")"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            Service.AccountNumber = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ProviderAccountNumber")), "", Dataset.Tables(0).Rows(0).Item("ProviderAccountNumber"))
+            Service.Budget = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Budget")), 0.0, Dataset.Tables(0).Rows(0).Item("Budget"))
+            Service.ChangeID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ChangeID")), 0, Dataset.Tables(0).Rows(0).Item("ChangeID"))
+            Service.ClientID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ClientID")), 0, Dataset.Tables(0).Rows(0).Item("ClientID"))
+            Service.CostCode = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("CostCode")), "", Dataset.Tables(0).Rows(0).Item("CostCode"))
+            'Service.CreateDate = CDate(IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("StartDate")), #12:00:00 AM#, Dataset.Tables(0).Rows(0).Item("StartDate")))
+            Service.EndDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("EndDate")), Nothing, Dataset.Tables(0).Rows(0).Item("EndDate"))
+            Service.Feature1 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature1")), 0, Dataset.Tables(0).Rows(0).Item("Feature1"))
+            Service.Feature2 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature2")), 0, Dataset.Tables(0).Rows(0).Item("Feature2"))
+            Service.Feature3 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature3")), 0, Dataset.Tables(0).Rows(0).Item("Feature3"))
+            Service.Feature4 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature4")), 0, Dataset.Tables(0).Rows(0).Item("Feature4"))
+            Service.Feature5 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature5")), 0, Dataset.Tables(0).Rows(0).Item("Feature5"))
+            Service.Feature6 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature6")), 0, Dataset.Tables(0).Rows(0).Item("Feature6"))
+            Service.Feature7 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature7")), 0, Dataset.Tables(0).Rows(0).Item("Feature7"))
+            Service.Feature8 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature8")), 0, Dataset.Tables(0).Rows(0).Item("Feature8"))
+            Service.Feature9 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature9")), 0, Dataset.Tables(0).Rows(0).Item("Feature9"))
+            Service.Feature0 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Feature0")), 0, Dataset.Tables(0).Rows(0).Item("Feature0"))
+            Service.GUID =REDACTED"GenericUID")), "", Dataset.Tables(0).Rows(0).Item("GenericUID"))
+            Service.NetworkTypeID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("NetworkTypeID")), 0, Dataset.Tables(0).Rows(0).Item("NetworkTypeID"))
+            Service.Number = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ServiceNumber")), "", Dataset.Tables(0).Rows(0).Item("ServiceNumber"))
+            Service.OrganisationalUnitID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("OrgUnitID")), 0, Dataset.Tables(0).Rows(0).Item("OrgUnitID"))
+            Service.PABXSiteID = 0
+            Service.PABXSiteName = ""
+            Service.PersonID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("UserID")), 0, Dataset.Tables(0).Rows(0).Item("UserID"))
+            Service.PlanID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PlanID")), 0, Dataset.Tables(0).Rows(0).Item("PlanID"))
+            Service.PrimaryPhoneID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("PrimaryServiceID")), 0, Dataset.Tables(0).Rows(0).Item("PrimaryServiceID"))
+            Service.ProviderID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ServiceProviderID")), 0, Dataset.Tables(0).Rows(0).Item("ServiceProviderID"))
+            Service.RebillingPlanID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("RebillingPlanID")), 0, Dataset.Tables(0).Rows(0).Item("RebillingPlanID"))
+            Service.ID = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ServiceID")), 0, Dataset.Tables(0).Rows(0).Item("ServiceID"))
+            Service.ServiceType = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ServiceType")), 0, Dataset.Tables(0).Rows(0).Item("ServiceType"))
+            Service.Silent = CBool(Not (IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("ListInDirectory")), False, Dataset.Tables(0).Rows(0).Item("ListInDirectory"))))
+            Service.Spare1 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Spare1")), "", Dataset.Tables(0).Rows(0).Item("Spare1"))
+            Service.Spare2 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Spare2")), "", Dataset.Tables(0).Rows(0).Item("Spare2"))
+            Service.Spare3 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Spare3")), "", Dataset.Tables(0).Rows(0).Item("Spare3"))
+            Service.Spare4 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Spare4")), "", Dataset.Tables(0).Rows(0).Item("Spare4"))
+            Service.Spare5 = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Spare5")), "", Dataset.Tables(0).Rows(0).Item("Spare5"))
+            Service.StartDate = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("StartDate")), #12:00:00 AM#, Dataset.Tables(0).Rows(0).Item("StartDate"))
+            Service.Status = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Status")), 0, Dataset.Tables(0).Rows(0).Item("Status"))
+            Service.UID =REDACTED"UID")), 0, Dataset.Tables(0).Rows(0).Item("UID"))
+
+            Service.Comment = IIf(IsDBNull(Dataset.Tables(0).Rows(0).Item("Comments")), "", Dataset.Tables(0).Rows(0).Item("Comments"))
+
+            _ObjectIsValid = True
+            Service.IsDirty = False
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return Service
+
+    End Function
+
+    '''' <summary>
+    '''' Retrieve Unique ID (UID) of existing FleetManager Service
+    '''' </summary>
+    '''' <param name="GUID"></param>
+    '''' <returns>Unique ID (UID) of Service</returns>
+    '''' <remarks></remarks>
+    'Private Function GetPhoneUID(ByVal GUID As String) as Int32
+    '    Dim QueryString As String = ""
+    '    Dim UID as Int32 = 0
+    '    Dim Dataset As DataSet
+
+    '    'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+    '    QueryString = "SELECT UID FROM Service WHERE GenericUID ='" & GUID & "' AND ClientID = " & _ClientID & " AND EndDate IS NULL"
+
+    '    Dataset = _Database.Execute(QueryString)
+    '    If Dataset.Tables(0).Rows.Count > 0 Then
+    '        UID =REDACTED
+    '        _ObjectIsValid = True
+    '    Else
+    '        _ObjectIsValid = False
+    '    End If
+
+    '    Dataset = Nothing
+
+    '    Return UID
+
+    'End Function
+
+    ''' <summary>
+    ''' Retrieve ID of existing FleetManager Service
+    ''' </summary>
+    ''' <param name="Number"></param>
+    ''' <returns>ID of Service</returns>
+    ''' <remarks></remarks>
+    Private Function GetPhoneID(ByVal Number As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT ServiceID FROM CurrentServiceView WITH (NOLOCK) WHERE ServiceNumber ='" & Number.Replace("'", "''") & "' AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve ID of existing FleetManager Service
+    ''' </summary>
+    ''' <param name="Number"></param>
+    ''' <returns>ID of Service</returns>
+    ''' <remarks></remarks>
+    Private Function GetPhoneUID(ByVal Number As String) As Int32
+        Dim QueryString As String = ""
+        Dim ID As Int32 = 0
+        Dim Dataset As DataSet
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString = "SELECT UID FROM CurrentServiceView WITH (NOLOCK) WHERE ServiceNumber ='" & Number.Replace("'", "''") & "' AND ClientID = " & _ClientID
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Dataset = Nothing
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve all ServiceProviders in FleetManager
+    ''' </summary>
+    ''' <returns>Collection of ServiceProvider</returns>
+    ''' <remarks></remarks>
+    Public Function GetProviderList(ByVal ServiceType As Integer) As Collections.SortedList
+        Dim QueryString As String = ""
+        Dim Providers As New Collections.SortedList
+        Dim UID As Int32 = 0
+        Dim Dataset As DataSet
+
+        ' TODO:  Get the correct SQL
+        'QueryString = "SELECT isnull(UID,0) as UID,isnull(ProviderName,'') as ProviderName,isnull(ServiceType,0) as ServiceType,isnull(ProviderCode,'') as ProviderCode from ServiceProvider WITH (NOLOCK) where Providercode is not null"
+        QueryString = "select isnull(serviceproviderlookup.serviceproviderid,0) as UID, "
+        QueryString &= "isnull(ServiceProvider.ProviderName,'') as ProviderName,isnull(ServiceProvider.servicetype,0) as ServiceType, "
+        QueryString &= "isnull(serviceproviderlookup.SystemProviderCode,'') as ProviderCode "
+        QueryString &= "from serviceproviderlookup "
+        QueryString &= "left outer join ServiceProvider on ServiceProvider.uid =REDACTED "
+        QueryString &= "where serviceproviderlookup.clientid = " & _ClientID.ToString
+        QueryString &= "and ISNULL(ServiceProvider.ServiceType, 0) =" & ServiceType.ToString
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        For Each Record As DataRow In Dataset.Tables(0).Rows
+            Dim Carrier As New Provider
+
+            Carrier.UID =REDACTED"UID")
+            Carrier.ProviderName = Record("ProviderName")
+            Carrier.ServiceType = Record("ServiceType")
+            Carrier.ProviderCode = Record("ProviderCode")
+
+            Providers.Add(Providers.Count + 1, Carrier)
+        Next
+
+        Dataset = Nothing
+
+        Return Providers
+    End Function
+
+    ''' <summary>
+    ''' Retrieves the Provider Name by passing the UID
+    ''' </summary>
+    ''' <param name="UID"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetProviderNamebyUID(ByVal UID As Int32) As String
+        Dim ReturnedProviderName As String = ""
+        Dim QueryString As String = ""
+        Dim DataSet As DataSet
+
+        QueryString = "Select ProviderName from ServiceProvider WITH (NOLOCK) where UID = "REDACTED"'' <summary>
+    ''' Retrieve TablePrefix of existing FleetManager Service Type
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <returns>Unique ID (UID) of a service type</returns>
+    ''' <remarks></remarks>
+    Public Function GetServiceTypePrefix(ByVal GUID As Int32) As String
+        Dim QueryString As String = ""
+        Dim Prefix As String = ""
+        Dim Dataset As DataSet
+
+        ' TODO:  Get the correct SQL
+        QueryString = "SELECT TablePrefix FROM ServiceType WITH (NOLOCK) WHERE UID ="REDACTED"The Table prefix could not be retrieved for this Service type." & _
+                      ControlChars.Lf & ControlChars.Lf & ex.ToString)
+        End Try
+
+        Dataset = Nothing
+
+        Return Prefix
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing FleetManager Bill
+    ''' </summary>
+    ''' <param name="PhoneBill"></param>
+    ''' <returns>Unique ID (UID) of Bill</returns>
+    ''' <remarks></remarks>
+    Public Function GetUID(ByVal PhoneBill As Bill) As Int32
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+        Return GetBillUID(PhoneBill.GUID)
+    End Function
+
+    ''' <summary>
+    ''' This function will get the path of the rental charges configuration
+    ''' </summary>
+    ''' <returns>Path</returns>
+    ''' <remarks>A. Agustin 31/05/2010</remarks>
+    Public Function GetXMLRentalLocation() As String
+        Dim Path As String = ""
+        Dim QueryString As String = "select isnull(text1,'') as Text1 from clientfeatures where clientid = " & _ClientID.ToString & " and description = 'RentalBillImporter - Configuration'"
+        Dim DataSet As DataSet
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            Path = DataSet.Tables(0).Rows(0).Item(0)
+        End If
+
+        DataSet = Nothing
+
+        Return Path
+    End Function
+
+    ''' <summary>
+    ''' This function will return the Location of the PDF Unknown Descriptions
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetPDFLocation() As String
+        Dim Path As String = ""
+        Dim QueryString As String = "select isnull(text2,'') as Text1 from clientfeatures where clientid = " & _ClientID.ToString & " and description = 'RentalBillImporter - Configuration'"
+        Dim DataSet As DataSet
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            Path = DataSet.Tables(0).Rows(0).Item(0)
+        End If
+
+        DataSet = Nothing
+
+        Return Path
+    End Function
+
+    ''' <summary>
+    ''' Retrieves the location/path of the XML configuration
+    ''' from the ClientFeatures table
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetXMLSettingsLocation() As String
+        Dim Path As String = ""
+        Dim QueryString As String = "select isnull(text2,'') as Text2 from clientfeatures where clientid = " & _ClientID.ToString & " and description = 'CallData - Executable Location'"
+        Dim DataSet As DataSet
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            Path = DataSet.Tables(0).Rows(0).Item(0)
+        End If
+
+        DataSet = Nothing
+
+        Return Path
+    End Function
+
+    ''' <summary>
+    ''' Insert Person into FleetManager Database
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <returns>ID of new User </returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal User As Person) As Int32
+        Dim QueryString As String = "INSERT INTO Users"
+        Dim ID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString &= " (" & _
+                       " StartDate," & _
+                       " FirstName," & _
+                       " LastName," & _
+                       " ClientID," & _
+                       " LocationBuilding," & _
+                       " Status," & _
+                       " Email," & _
+                       " OrgUnitID," & _
+                       " PositionTitle," & _
+                       " CostCode," & _
+                       " Budget," & _
+                       " ListInDirectory," & _
+                       " Custom1," & _
+                       " Custom2," & _
+                       " Custom3," & _
+                       " Custom4," & _
+                       " Custom5," & _
+                       " Custom6," & _
+                       " Custom7," & _
+                       " Custom8," & _
+                       " Custom9," & _
+                       " Custom10," & _
+                       " Custom11," & _
+                       " Custom12," & _
+                       " Custom13," & _
+                       " Custom14," & _
+                       " MiddleName," & _
+                       " Salutation," & _
+                       " SecondaryContactNumber," & _
+                       " GenericUID)"
+        QueryString &= " VALUES     (" & _
+                         "cast('" & User.StartDate & "' as datetime),'" & _
+                         User.FirstName.Replace("'", "''") & "', '" & _
+                         User.Surname.Replace("'", "''") & "', '" & _
+                         User.ClientID & "', '" & _
+                         User.Building.Replace("'", "''") & "', '" & _
+                         User.Status & "', '" & _
+                         User.EmailAddress.Replace("'", "''") & "', '" & _
+                         User.OrganisationalUnitID & "', '" & _
+                         User.Title.Replace("'", "''") & "', '" & _
+                         User.CostCode.Replace("'", "''") & "', " & _
+                         User.Budget & ", " & _
+                         Math.Abs(CInt(Not User.Silent)) & ", '" & _
+                         User.Custom1.Replace("'", "''") & "', '" & _
+                         User.Custom2.Replace("'", "''") & "', '" & _
+                         User.Custom3.Replace("'", "''") & "', '" & _
+                         User.Custom4.Replace("'", "''") & "', '" & _
+                         User.Custom5.Replace("'", "''") & "', '" & _
+                         User.Custom6.Replace("'", "''") & "', '" & _
+                         User.Custom7.Replace("'", "''") & "', '" & _
+                         User.Custom8.Replace("'", "''") & "', '" & _
+                         User.Custom9.Replace("'", "''") & "', '" & _
+                         User.Custom10.Replace("'", "''") & "', '" & _
+                         User.Custom11.Replace("'", "''") & "', '" & _
+                         User.Custom12.Replace("'", "''") & "', '" & _
+                         User.Custom13.Replace("'", "''") & "', '" & _
+                         User.Custom14.Replace("'", "''") & "', '" & _
+                         User.MiddleName.Replace("'", "''") & "', '" & _
+                         User.Salutation.Replace("'", "''") & "', '" & _
+                         User.SecondaryContactNumber.Replace("'", "''") & "', '" & _
+                         User.GUID.Replace("'", "''") & _
+                         "') "
+        QueryString &= " ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dim Dataset As DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+
+            'trace.writeline("Updating UserID...")
+            QueryString = "UPDATE Users SET UserID = "REDACTED" WHERE UID = "REDACTED"trace.writeline("Setting OU IsDirty = False")
+            User.IsDirty = False
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Insert Phone into FleetManager Database
+    ''' </summary>
+    ''' <param name="Service"></param>
+    ''' <returns>Unique ID (UID) of new Service</returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal Service As Phone) As Int32
+        Dim QueryString As String = "INSERT INTO Service"
+        Dim ID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString &= " (" & _
+                       " StartDate," & _
+                       " EndDate," & _
+                       " ChangeID," & _
+                       " Comments," & _
+                       " ServiceID," & _
+                       " ServiceNumber," & _
+                       " UserID," & _
+                       " OrgUnitID," & _
+                       " PrimaryServiceID," & _
+                       " ClientID," & _
+                       " ServiceType," & _
+                       " ServiceProviderID," & _
+                       " ProviderAccountNumber," & _
+                       " Status," & _
+                       " ListInDirectory," & _
+                       " CostCode," & _
+                       " Feature1," & _
+                       " Feature2," & _
+                       " Feature3," & _
+                       " Feature4," & _
+                       " Feature5," & _
+                       " Feature6," & _
+                       " Feature7," & _
+                       " Feature8," & _
+                       " Feature9," & _
+                       " Feature0," & _
+                       " Spare1," & _
+                       " Spare2," & _
+                       " Spare3," & _
+                       " Spare4," & _
+                       " Spare5," & _
+                       " budget," & _
+                       " NetworkTypeID," & _
+                       " GenericUID," & _
+                       " RebillingPlanID)"
+        QueryString &= " VALUES     (" & _
+                       "cast('" & Service.StartDate & "' as datetime)," & _
+                       "NULL," & _
+                       "NULL," & _
+                       "'" & Service.Comment.Replace("'", "''") & "'," & _
+                       Service.ID & "," & _
+                       "'" & Service.Number.Replace("'", "''") & "'," & _
+                       Service.PersonID & "," & _
+                       Service.OrganisationalUnitID & "," & _
+                       "NULL," & _
+                       Service.ClientID & "," & _
+                       Service.ServiceType & "," & _
+                       Service.ProviderID & "," & _
+                       "'" & Service.AccountNumber.Replace("'", "''") & "'," & _
+                       Service.Status & "," & _
+                       Math.Abs(CInt((Not Service.Silent))) & "," & _
+                       "'" & Service.CostCode.Replace("'", "''") & "'," & _
+                       Service.Feature1 & "," & _
+                       Service.Feature2 & "," & _
+                       Service.Feature3 & "," & _
+                       Service.Feature4 & "," & _
+                       Service.Feature5 & "," & _
+                       Service.Feature6 & "," & _
+                       Service.Feature7 & "," & _
+                       Service.Feature8 & "," & _
+                       Service.Feature9 & "," & _
+                       Service.Feature0 & "," & _
+                       "'" & Service.Spare1.Replace("'", "''") & "'," & _
+                       "'" & Service.Spare2.Replace("'", "''") & "'," & _
+                       "'" & Service.Spare3.Replace("'", "''") & "'," & _
+                       "'" & Service.Spare4.Replace("'", "''") & "'," & _
+                       "'" & Service.Spare5.Replace("'", "''") & "'," & _
+                       Service.Budget & "," & _
+                       Service.NetworkTypeID & "," & _
+                       "'" & Service.GUID.Replace("'", "''") & "'," & _
+                       Service.RebillingPlanID & _
+                       ")"
+        QueryString &= "; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dim Dataset As DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+
+            QueryString = "UPDATE Service SET ServiceID = " & ID & " WHERE UID = "REDACTED"'' <summary>
+    ''' Insert Organisational Unit into FleetManager Database
+    ''' </summary>
+    ''' <param name="OU"></param>
+    ''' <returns>Unique ID (UID) of new OU</returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal OU As OrganisationalUnit) As Int32
+        Dim QueryString As String = "INSERT INTO ClientOrganisationUnit"
+        Dim ID As Int32 = 0
+        Dim ParentID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        If OU.ParentOrganisationalUnitID = 0 Then
+            If OU.ParentOrganisationalUnitGUID <> "" Then
+                'trace.writeline("Loading Parent OU ID...")
+                ParentID = GetOrganisationalUnitID(OU.ParentOrganisationalUnitGUID, Parameter.GUID)
+            Else
+                'trace.writeline("This OU has no Parent...")
+                ParentID = 0
+            End If
+        Else
+            'trace.writeline("Loading Parent OU ID...")
+            ParentID = OU.ParentOrganisationalUnitID
+        End If
+
+        OU.CostCode = OU.CostCode & ""
+
+        QueryString &= " (" & _
+                       "StartDate," & _
+                       "OrgUnitID," & _
+                       "EndDate," & _
+                       "ChangeID," & _
+                       "OrgUnitName," & _
+                       "OrgUnitParent," & _
+                       "ClientID," & _
+                       "OrgUnitCostCentre," & _
+                       "OrgUnitOverallBudget," & _
+                       "OrgUnitIndividualBudget," & _
+                       "OrgUnitExcludeDirectory," & _
+                       "OrgUnitLevel," & _
+                       "Custom1," & _
+                       "Custom2," & _
+                       "Custom3," & _
+                       "Custom4," & _
+                       "Custom5," & _
+                       "Custom6," & _
+                       "Custom7," & _
+                       "Custom8," & _
+                       "Custom9," & _
+                       "Custom10," & _
+                       "OrgUnitStreetAddress," & _
+                       "OrgUnitSuburb," & _
+                       "OrgUnitState," & _
+                       "OrgUnitCountry," & _
+                       "OrgUnitPostCode," & _
+                       "RebillingPlanID," & _
+                       "GenericUID) "
+        QueryString &= "VALUES     (" & _
+                       "cast('" & OU.StartDate & "' as datetime)," & _
+                       OU.ID & ", " & _
+                       "NULL, " & _
+                       "NULL, '" & _
+                       OU.Name.Replace("'", "''") & "', " & _
+                       ParentID & ", " & _
+                       OU.ClientID & ", '" & _
+                       OU.CostCode.Replace("'", "''") & "', " & _
+                       OU.Budget & ", " & _
+                       OU.DefaultPersonBudget & ", " & _
+                       Math.Abs(CInt(OU.Silent)) & ", " & _
+                       "0, '" & _
+                       OU.Custom1.Replace("'", "''") & "', '" & _
+                       OU.Custom2.Replace("'", "''") & "', '" & _
+                       OU.Custom3.Replace("'", "''") & "', '" & _
+                       OU.Custom4.Replace("'", "''") & "', '" & _
+                       OU.Custom5.Replace("'", "''") & "', '" & _
+                       OU.Custom6.Replace("'", "''") & "', '" & _
+                       OU.Custom7.Replace("'", "''") & "', '" & _
+                       OU.Custom8.Replace("'", "''") & "', '" & _
+                       OU.Custom9.Replace("'", "''") & "', '" & _
+                       OU.Custom10.Replace("'", "''") & "', '" & _
+                       OU.StreetAddress.Replace("'", "''") & "', '" & _
+                       OU.Suburb.Replace("'", "''") & "', " & _
+                       OU.State & ", '" & _
+                       OU.Country.Replace("'", "''") & "', '" & _
+                       OU.PostCode.Replace("'", "''") & "', " & _
+                       OU.RebillingPlanID & ", '" & _
+                       OU.GUID.Replace("'", "''") & _
+                       "')"
+        QueryString &= "; SELECT SCOPE_IDENTITY() AS ID"
+
+        'trace.writeline("Creating OU...")
+        Dim Dataset As DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+
+            'trace.writeline("Updating OrgUnitID...")
+            QueryString = "UPDATE ClientOrganisationunit SET OrgUnitID = " & ID & " WHERE UID = "REDACTED"trace.writeline("Setting OU IsDirty = False")
+            OU.IsDirty = False
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' This function will insert a record to PABX table
+    ''' </summary>
+    ''' <param name="Site">PabxID</param>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal Site As Pabx) As Integer
+        Dim QueryString As String = ""
+        Dim UID As Integer = 0
+
+
+        QueryString = "Insert into PABX(PABXCode, PABXName, ClientID, Comment) values('"
+        QueryString &= Site.Code.Replace("'", "''").Trim & "','" & Site.Name.Replace("'", "''").Trim & "'," & _ClientID.ToString & ",'" & Site.Comment.Replace("'", "''").Trim & "');select @@IDENTITY;"
+
+
+        UID =REDACTED FleetManagerDatabaseType.Data, 300)
+
+        Return UID
+
+    End Function
+
+    ''' <summary>
+    ''' This function will insaert record to the Trunk Table
+    ''' </summary>
+    ''' <param name="Trunk"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal Trunk As Trunk) As Integer
+        Dim QueryString As String = ""
+        Dim UID As Integer = 0
+
+        QueryString = "Insert into Trunk(ClientID,TrunkName,TrunkNumber,RouteID,Comment) values("
+        QueryString &= _ClientID.ToString & ",'" & Trunk.Name.Replace("'", "''") & "','"
+        QueryString &= Trunk.Number.Replace("'", "''") & "'," & Trunk.RouteID & ",'"
+        QueryString &= Trunk.Comment.Replace("'", "''") & "');select @@IDENTITY;"
+
+        UID =REDACTED FleetManagerDatabaseType.Data, 300)
+
+        Return UID
+
+    End Function
+
+    Public Sub AddServiceProviderLookup(ByVal ProviderID As Integer, ByVal ProviderCode As String)
+        Dim QueryString As String = ""
+        Dim LookupIDCount As Integer = 0
+
+        QueryString = "Select count(*) from ServiceProviderLookup where Clientid = " & _ClientID.ToString
+        QueryString &= " and SystemProviderCode = " & ProviderCode & " and ServiceProviderID = " & ProviderID.ToString
+        LookupIDCount = _Database.ExecuteScalar(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        If LookupIDCount = 0 Then
+            QueryString = ""
+            QueryString = "Insert into ServiceProviderLookup(SystemProviderCode,ServiceProviderID,ClientID) values('"
+            QueryString &= ProviderCode & "'," & ProviderID & "," & _ClientID.ToString & ")"
+
+            _Database.ExecuteNonQuery(QueryString, FleetManagerDatabaseType.Data, 300)
+        End If
+
+    End Sub
+
+
+    ''' <summary>
+    ''' This function will insert a record to the Route Table
+    ''' </summary>
+    ''' <param name="Route">RouteID</param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal Route As Route) As Integer
+        Dim QueryString As String = ""
+        Dim UID As Integer = 0
+
+        QueryString = "Insert into [Route](ClientID,RouteName,RouteNumber,PabxID,TrunkCount,Comment) values("
+        QueryString &= _ClientID.ToString & ",'" & Route.Name.Replace("'", "''") & "','"
+        QueryString &= Route.Number.Replace("'", "''") & "'," & Route.PabxID & ",0,'" & Route.Comment.Replace("'", "''") & "');select @@IDENTITY;"
+
+        UID =REDACTED FleetManagerDatabaseType.Data, 300)
+
+        Return UID
+
+    End Function
+
+
+    ''' <summary>
+    ''' Insert ClientAccounts into FleetManager Database
+    ''' </summary>
+    ''' <param name="BillingAccount"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByRef BillingAccount As Account) As Boolean
+        Dim QueryString As String = ""
+        Dim UID As Int32 = 0
+        Dim DataSet As DataSet
+        Try
+            QueryString = "Select AccountNo,isnull(OrgUnitID,0) as OrgUnitID from ClientAccounts WITH (NOLOCK) " & _
+                          " where clientID = " & BillingAccount.ClientID.ToString & _
+                          " and AccountNo = '" & BillingAccount.AccountNumber & "' " & _
+                          " and BillType = " & BillingAccount.BillType.ToString & _
+                          " and ProviderID = " & BillingAccount.ProviderID
+
+            DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+            If DataSet.Tables(0).Rows.Count > 0 Then
+                BillingAccount.OrgUnitID = DataSet.Tables(0).Rows(0).Item("OrgUnitID")
+            Else
+                QueryString = "Insert into ClientAccounts(" & _
+                                          "ClientID," & _
+                                          "AccountNo," & _
+                                          "BillType," & _
+                                          "ProviderID,OrgUnitID) values(" & _
+                                          BillingAccount.ClientID & ",'" & _
+                                          BillingAccount.AccountNumber.Replace("'", "''") & "'," & _
+                                          BillingAccount.BillType & "," & _
+                                          BillingAccount.ProviderID & ",NULL)"
+
+                _Database.ExecuteNonQuery(QueryString, FleetManagerDatabaseType.Data, 300)
+            End If
+
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Insert Login into FleetManager Database
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <returns>ID of new Login </returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal User As Login) As Int32 ' TODO: Requires testing
+        Dim QueryString As String = "INSERT INTO UserLogin"
+        Dim ID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        QueryString &= " (" & _
+                       " LoginID," & _
+                       " StartDate," & _
+                       " EndDate," & _
+                       " SiteID," & _
+                       " LoginName," & _
+                       " Password," & _
+                       " PasswordExp," & _
+                       " ClientID," & _
+                       " UserID," & _
+                       " ChangeID," & _
+                       " Home," & _
+                       " UserRole," & _
+                       " FirstLogin," & _
+                       " LastLogin," & _
+                       " OrgUnitID," & _
+                       " UserActive," & _
+                       " Status," & _
+                       " PhoneNumber," & _
+                       " Mobile," & _
+                       " Fax," & _
+                       " Email," & _
+                       " HideAllocated," & _
+                       " RPP," & _
+                       " MarkupSecurity," & _
+                       " MarkupDisplay," & _
+                       " GenericUID)"
+        QueryString &= " VALUES     (" & _
+                         User.LoginID & "," & _
+                         "cast('" & User.StartDate.ToString & "' as datetime), " & _
+                         "NULL, " & _
+                         User.SiteID & ", '" & _
+                         User.LoginName.Replace("'", "''") & "', '" & _
+                         User.Password.Replace("'", "''") & "', " & _
+                         IIf(User.PasswordExpiryDate.ToString = "1/01/0001 12:00:00 AM", "NULL", "cast('" & User.PasswordExpiryDate.ToString & "' as datetime)") & ", " & _
+                         User.ClientID & ", " & _
+                         User.UserID & ", " & _
+                         User.ChangeID & ", '" & _
+                         User.Home.Replace("'", "''") & "', " & _
+                         User.UserRoleID & ", " & _
+                         Math.Abs(CInt(User.FirstLogin)) & ", " & _
+                         "NULL, " & _
+                         User.OrgUnitID & ", " & _
+                         Math.Abs(CInt(User.UserActive)) & ", " & _
+                         User.Status & ", '" & _
+                         User.PhoneNumber.Replace("'", "''") & "', '" & _
+                         User.MobileNumber.Replace("'", "''") & "', '" & _
+                         User.FacsimileNumber.Replace("'", "''") & "', '" & _
+                         User.EmailAddress.Replace("'", "''") & "', " & _
+                         Math.Abs(CInt(User.HideAllocated)) & ", " & _
+                         User.RPP & ", '" & _
+                         User.MarkupSecurity.Replace("'", "''") & "', '" & _
+                         User.MarkupDisplay.Replace("'", "''") & "', '" & _
+                         User.GUID.Replace("'", "''") & _
+                         "') "
+        QueryString &= " ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dim Dataset As DataSet = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ID = Dataset.Tables(0).Rows(0).Item(0)
+            _ObjectIsValid = True
+
+            'trace.writeline("Updating UserID...")
+            QueryString = "UPDATE UserLogin SET LoginID = " & ID & " WHERE UID = "REDACTED"trace.writeline("Setting OU IsDirty = False")
+            User.IsDirty = False
+        Else
+            _ObjectIsValid = False
+        End If
+
+        Return ID
+
+    End Function
+
+    ''' <summary>
+    ''' Insert Service Charge into FleetManager Database
+    ''' </summary>
+    ''' <param name="Charge"></param>
+    ''' <returns>Boolean indicating success</returns>
+    ''' <remarks></remarks>
+    Public Function Insert(ByVal Charge As ServiceCharge) As Boolean
+        Dim IsSuccessful As Boolean = True
+        Dim UID As Int32 = 0
+        Dim ProcedureName As String = Charge.ServiceDescription & "AddServiceData"
+
+        Try
+            Dim DataCommand As SqlClient.SqlCommand
+            DataCommand = New SqlClient.SqlCommand(ProcedureName)
+
+            DataCommand.CommandTimeout = 1000
+            DataCommand.CommandType = CommandType.StoredProcedure
+
+            DataCommand.Parameters.Add("@billID", SqlDbType.Int)
+            DataCommand.Parameters("@billID").Value = Charge.BillID
+            DataCommand.Parameters("@billID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@ClientID", SqlDbType.Int)
+            DataCommand.Parameters("@ClientID").Value = Charge.ClientID
+            DataCommand.Parameters("@ClientID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@serviceID", SqlDbType.Int)
+            DataCommand.Parameters("@serviceID").Value = Charge.ServiceID
+            DataCommand.Parameters("@serviceID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@serviceNo", SqlDbType.Char, 20)
+            DataCommand.Parameters("@serviceNo").Value = Charge.ServiceNumber
+            DataCommand.Parameters("@serviceNo").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@userID", SqlDbType.Int)
+            DataCommand.Parameters("@userID").Value = Charge.UserID
+            DataCommand.Parameters("@userID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@OrgUnitID", SqlDbType.Int)
+            DataCommand.Parameters("@OrgUnitID").Value = Charge.OrgUnitID
+            DataCommand.Parameters("@OrgUnitID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@serviceType", SqlDbType.Char, 50)
+            DataCommand.Parameters("@serviceType").Value = Charge.ServiceType
+            DataCommand.Parameters("@serviceType").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@totalExCharge", SqlDbType.Money)
+            DataCommand.Parameters("@totalExCharge").Value = Charge.TotalExCharge
+            DataCommand.Parameters("@totalExCharge").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@totalGST", SqlDbType.Money)
+            DataCommand.Parameters("@totalGST").Value = Charge.TotalGST
+            DataCommand.Parameters("@totalGST").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@totalINCCharge", SqlDbType.Money)
+            DataCommand.Parameters("@totalINCCharge").Value = Charge.TotalINCCharge
+            DataCommand.Parameters("@totalINCCharge").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@originalExCharge", SqlDbType.Money)
+            DataCommand.Parameters("@originalExCharge").Value = Charge.TotalExCharge
+            DataCommand.Parameters("@originalExCharge").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@originalGST", SqlDbType.Money)
+            DataCommand.Parameters("@originalGST").Value = Charge.TotalGST
+            DataCommand.Parameters("@originalGST").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@originalINCCharge", SqlDbType.Money)
+            DataCommand.Parameters("@originalINCCharge").Value = Charge.TotalINCCharge
+            DataCommand.Parameters("@originalINCCharge").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@theDay", SqlDbType.TinyInt)
+            DataCommand.Parameters("@theDay").Value = Charge.Billdate.Day
+            DataCommand.Parameters("@billID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@theMonth", SqlDbType.TinyInt)
+            DataCommand.Parameters("@theMonth").Value = Charge.Billdate.Month
+            DataCommand.Parameters("@theMonth").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@theYear", SqlDbType.SmallInt)
+            DataCommand.Parameters("@theYear").Value = Charge.Billdate.Year
+            DataCommand.Parameters("@theYear").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@billDate", SqlDbType.DateTime)
+            DataCommand.Parameters("@billDate").Value = Charge.Billdate
+            DataCommand.Parameters("@billDate").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@billingCodeID", SqlDbType.Int)
+            DataCommand.Parameters("@billingCodeID").Value = Charge.BillingCodeId
+            DataCommand.Parameters("@billingCodeID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@providerID", SqlDbType.Int)
+            DataCommand.Parameters("@providerID").Value = Charge.ProviderID
+            DataCommand.Parameters("@providerID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@offeringID", SqlDbType.Int)
+            DataCommand.Parameters("@offeringID").Value = Charge.OfferingID
+            DataCommand.Parameters("@offeringID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@graphGroupID", SqlDbType.Int)
+            DataCommand.Parameters("@graphGroupID").Value = Charge.GraphGroupID
+            DataCommand.Parameters("@graphGroupID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@ChargeDate", SqlDbType.DateTime)
+            DataCommand.Parameters("@ChargeDate").Value = Charge.Billdate
+            DataCommand.Parameters("@ChargeDate").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@ChargeType", SqlDbType.Char, 150)
+            DataCommand.Parameters("@ChargeType").Value = Charge.ChargeType
+            DataCommand.Parameters("@ChargeType").Direction = ParameterDirection.Input
+
+            _Database.ExecuteStoredProcedure(DataCommand, Definitions.FleetManagerDatabaseType.Data)
+
+            DataCommand.Dispose()
+
+        Catch ex As Exception
+            Err.Raise(vbObjectError + 522, GetExecutingAssembly.GetName.Name, "Failed to insert a record in Service Data." & _
+                     ControlChars.Lf & ControlChars.Lf & ex.ToString)
+            IsSuccessful = False
+        End Try
+
+        Return IsSuccessful
+    End Function
+
+    ''' <summary>
+    ''' Insert Bill into FleetManager Database
+    ''' </summary>
+    ''' <returns>Unique ID (UID) of new Bill</returns>
+    ''' <remarks></remarks>
+    ''' 
+    Public Function Insert(ByVal PhoneBill As Bill) As Int32
+        Dim ProcedureName As String = PhoneBill.ServiceDescription & "AddBill"
+        Dim UID As Int32 = 0
+
+        Try
+            Dim DataCommand As SqlClient.SqlCommand
+            DataCommand = New SqlClient.SqlCommand(ProcedureName)
+
+            DataCommand.CommandTimeout = 300
+            'create the bill and set the billid
+            DataCommand.CommandType = CommandType.StoredProcedure
+            DataCommand.Parameters.Add("@clientID", SqlDbType.Int)
+            DataCommand.Parameters("@clientID").Value = ClientID * -1
+            DataCommand.Parameters("@clientID").Direction = ParameterDirection.Input
+            DataCommand.Parameters.Add("@providerID", SqlDbType.Int)
+            DataCommand.Parameters("@providerID").Value = PhoneBill.ProviderID
+            DataCommand.Parameters("@providerID").Direction = ParameterDirection.Input
+            DataCommand.Parameters.Add("@bMonth", SqlDbType.Int)
+            DataCommand.Parameters("@bMonth").Value = PhoneBill.BillDate.Month
+            DataCommand.Parameters("@bMonth").Direction = ParameterDirection.Input
+            DataCommand.Parameters.Add("@bYear", SqlDbType.Int)
+            DataCommand.Parameters("@bYear").Value = PhoneBill.BillDate.Year
+            DataCommand.Parameters("@bYear").Direction = ParameterDirection.Input
+            DataCommand.Parameters.Add("@bDate", SqlDbType.DateTime)
+            DataCommand.Parameters("@bDate").Value = PhoneBill.BillDate
+            DataCommand.Parameters("@bDate").Direction = ParameterDirection.Input
+            DataCommand.Parameters.Add("@accNo", SqlDbType.VarChar)
+            DataCommand.Parameters("@accNo").Value = PhoneBill.AccountNumber
+            DataCommand.Parameters("@accNo").Direction = ParameterDirection.Input
+            DataCommand.Parameters.Add("@billID", SqlDbType.Int)
+            DataCommand.Parameters("@billID").Direction = ParameterDirection.Output
+
+            _Database.ExecuteStoredProcedure(DataCommand, Definitions.FleetManagerDatabaseType.Data)
+            UID =REDACTED"@billID").Value
+        Catch ex As Exception
+            Err.Raise(vbObjectError + 522, GetExecutingAssembly.GetName.Name, "Failed to insert a record in BillDetails." & _
+                      ControlChars.Lf & ControlChars.Lf & ex.ToString)
+        End Try
+
+        Return UID
+
+    End Function
+
+    ''' <summary>
+    ''' Insert Call into FleetManager Database
+    ''' </summary>
+    ''' <param name="ClientID"></param>
+    ''' <returns>Status (if a a record was successfully inserted)</returns>
+    ''' <remarks></remarks>
+    ''' 
+    Public Function InsertCall(ByVal ClientID As String, ByVal Prefix As String, ByVal CallData As Calls, Optional ByVal WithTermCityValue As Boolean = False) As Boolean
+        Dim ProcedureName As String = Prefix & "AddCallData"
+        Dim IsSuccessful As Boolean = False
+
+        Try
+            Dim DataCommand As SqlClient.SqlCommand
+            DataCommand = New SqlClient.SqlCommand(ProcedureName)
+
+            DataCommand.CommandType = CommandType.StoredProcedure
+            DataCommand.Parameters.Add("@BillID", SqlDbType.Int)
+            DataCommand.Parameters("@billID").Value = CallData.BillID
+            DataCommand.Parameters("@billID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@clientID", SqlDbType.Int)
+            DataCommand.Parameters("@clientID").Value = ClientID
+            DataCommand.Parameters("@clientID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@serviceID", SqlDbType.Int)
+            DataCommand.Parameters("@serviceID").Value = CallData.ServiceID
+            DataCommand.Parameters("@serviceID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@userID", SqlDbType.Int)
+            DataCommand.Parameters("@userID").Value = CallData.UserID
+            DataCommand.Parameters("@userID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@orgUnitID", SqlDbType.Int)
+            DataCommand.Parameters("@orgUnitID").Value = CallData.OrgUnitID
+            DataCommand.Parameters("@orgUnitID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@callDate", SqlDbType.Char, 10)
+            DataCommand.Parameters("@callDate").Value = CallData.Calldate
+            DataCommand.Parameters("@callDate").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@callTime", SqlDbType.Char, 10)
+            DataCommand.Parameters("@callTime").Value = CallData.CallTime
+            DataCommand.Parameters("@callTime").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@location", SqlDbType.VarChar, 50)
+            DataCommand.Parameters("@location").Value = ""
+            DataCommand.Parameters("@location").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@TermCity", SqlDbType.VarChar, 50)
+            If WithTermCityValue Then
+                DataCommand.Parameters("@TermCity").Value = CallData.CallType.Trim.Replace(",", ";").Replace("'", "''")
+            Else
+                DataCommand.Parameters("@TermCity").Value = ""
+            End If
+            DataCommand.Parameters("@TermCity").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@duration", SqlDbType.Int)
+            DataCommand.Parameters("@duration").Value = CallData.Duration
+            DataCommand.Parameters("@duration").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@callType", SqlDbType.Char, 10)
+            DataCommand.Parameters("@callType").Value = CallData.CallType.Trim.Replace(",", ";").Replace("'", "''")
+            DataCommand.Parameters("@callType").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@peak", SqlDbType.Char, 10)
+            DataCommand.Parameters("@peak").Value = ""
+            DataCommand.Parameters("@peak").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@serviceNO", SqlDbType.VarChar, 20)
+            DataCommand.Parameters("@serviceNO").Value = CallData.ServiceNumber.Trim.Replace(",", ";").Replace("'", "''")
+            DataCommand.Parameters("@serviceNO").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@calledNO", SqlDbType.VarChar, 20)
+            DataCommand.Parameters("@calledNO").Value = CallData.CallNo.Trim.Replace(",", ";").Replace("'", "''")
+            DataCommand.Parameters("@calledNO").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@IDD", SqlDbType.Char, 1)
+            DataCommand.Parameters("@IDD").Value = ""
+            DataCommand.Parameters("@IDD").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@PARtype", SqlDbType.Int)
+            DataCommand.Parameters("@PARtype").Value = CallData.ParType
+            DataCommand.Parameters("@PARtype").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@CallDirection", SqlDbType.VarChar, 20)
+            DataCommand.Parameters("@CallDirection").Value = ""
+            DataCommand.Parameters("@CallDirection").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@CallFlag", SqlDbType.VarChar, 12)
+            DataCommand.Parameters("@CallFlag").Value = CallData.CallFlag
+            DataCommand.Parameters("@CallFlag").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@State", SqlDbType.VarChar, 40)
+            DataCommand.Parameters("@State").Value = ""
+            DataCommand.Parameters("@State").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Country", SqlDbType.VarChar, 40)
+            DataCommand.Parameters("@Country").Value = ""
+            DataCommand.Parameters("@Country").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@CallTrunk", SqlDbType.VarChar, 16)
+            DataCommand.Parameters("@CallTrunk").Value = CallData.CallTrunk
+            DataCommand.Parameters("@CallTrunk").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@CallTruckGroup", SqlDbType.VarChar, 26)
+            DataCommand.Parameters("@CallTruckGroup").Value = CallData.CallTruckGroup
+            DataCommand.Parameters("@CallTruckGroup").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Accountcode", SqlDbType.VarChar, 16)
+            DataCommand.Parameters("@Accountcode").Value = CallData.AccountCode
+            DataCommand.Parameters("@Accountcode").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Authorisationcode", SqlDbType.VarChar, 16)
+            DataCommand.Parameters("@Authorisationcode").Value = CallData.AuthorisationCode
+            DataCommand.Parameters("@Authorisationcode").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@RateType", SqlDbType.VarChar, 10)
+            DataCommand.Parameters("@RateType").Value = CallData.Raretype
+            DataCommand.Parameters("@RateType").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Accesscode", SqlDbType.VarChar, 5)
+            DataCommand.Parameters("@Accesscode").Value = CallData.AccessCode
+            DataCommand.Parameters("@Accesscode").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Transferredcallid", SqlDbType.Int)
+            DataCommand.Parameters("@Transferredcallid").Value = 0
+            DataCommand.Parameters("@Transferredcallid").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Answerdelay", SqlDbType.Int)
+            DataCommand.Parameters("@Answerdelay").Value = CallData.AnswerDelay
+            DataCommand.Parameters("@Answerdelay").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Answered", SqlDbType.VarChar, 7)
+            DataCommand.Parameters("@Answered").Value = CallData.Answered
+            DataCommand.Parameters("@Answered").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@Site", SqlDbType.VarChar, 50)
+            DataCommand.Parameters("@Site").Value = CallData.Site
+            DataCommand.Parameters("@Site").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@totalExCharge", SqlDbType.Money)
+            DataCommand.Parameters("@totalExCharge").Value = CallData.TotalExcharge
+            DataCommand.Parameters("@totalExCharge").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@totalGst", SqlDbType.Money)
+            DataCommand.Parameters("@totalGst").Value = CallData.TotalGST
+            DataCommand.Parameters("@totalGst").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@totalINCCharge", SqlDbType.Money)
+            DataCommand.Parameters("@totalINCCharge").Value = CallData.TotalExcharge + CallData.TotalGST
+            DataCommand.Parameters("@totalINCCharge").Direction = ParameterDirection.Input
+
+
+            DataCommand.Parameters.Add("@originalExCharge", SqlDbType.Money)
+            DataCommand.Parameters("@originalExCharge").Value = CallData.TotalExcharge
+            DataCommand.Parameters("@originalExCharge").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@originalGst", SqlDbType.Money)
+            DataCommand.Parameters("@originalGst").Value = CallData.TotalGST
+            DataCommand.Parameters("@originalGst").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@OriginalINCCharge", SqlDbType.Money)
+            DataCommand.Parameters("@OriginalINCCharge").Value = CallData.TotalExcharge + CallData.TotalGST
+            DataCommand.Parameters("@OriginalINCCharge").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@TheDay", SqlDbType.TinyInt)
+            DataCommand.Parameters("@TheDay").Value = IIf(IsDate(CallData.Calldate), CDate(CallData.Calldate).Day, 0)
+            DataCommand.Parameters("@TheDay").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@TheMonth", SqlDbType.TinyInt)
+            DataCommand.Parameters("@TheMonth").Value = IIf(IsDate(CallData.Calldate), CDate(CallData.Calldate).Month, 0)
+            DataCommand.Parameters("@TheMonth").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@TheYear", SqlDbType.SmallInt)
+            DataCommand.Parameters("@TheYear").Value = IIf(IsDate(CallData.Calldate), CDate(CallData.Calldate).Year, 0)
+            DataCommand.Parameters("@TheYear").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@billingcodeid", SqlDbType.Int)
+            DataCommand.Parameters("@billingcodeid").Value = CallData.BillingCodeid
+            DataCommand.Parameters("@billingcodeid").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@providerID", SqlDbType.Int)
+            DataCommand.Parameters("@providerID").Value = CallData.ProviderID
+            DataCommand.Parameters("@providerID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@offeringID", SqlDbType.Int)
+            DataCommand.Parameters("@offeringID").Value = 0
+            DataCommand.Parameters("@offeringID").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@graphGroupid", SqlDbType.Int)
+            DataCommand.Parameters("@graphGroupid").Value = CallData.GraphgroupID
+            DataCommand.Parameters("@graphGroupid").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@ChargeType", SqlDbType.VarChar, 150)
+            DataCommand.Parameters("@ChargeType").Value = CallData.ChargeType.Trim.Replace(",", ";").Replace("'", "''")
+            DataCommand.Parameters("@ChargeType").Direction = ParameterDirection.Input
+
+            DataCommand.Parameters.Add("@dataUsageBytes", SqlDbType.BigInt)
+            DataCommand.Parameters("@DataUsageBytes").Value = 0
+            DataCommand.Parameters("@DataUsageBytes").Direction = ParameterDirection.Input
+
+
+            _Database.ExecuteStoredProcedure(DataCommand, Definitions.FleetManagerDatabaseType.Data)
+            IsSuccessful = True
+
+        Catch ex As Exception
+            Err.Raise(vbObjectError + 523, GetExecutingAssembly.GetName.Name, "Failed to insert a record in BillData." & ControlChars.Lf & _
+                      ControlChars.Lf & ex.Message)
+            IsSuccessful = False
+        End Try
+
+        Return IsSuccessful
+    End Function
+
+    Public Function LoadServiceFilterList(ByVal ServiceType As Integer) As DataSet
+        Dim DataSet As DataSet
+        Dim QueryString As String = ""
+
+        QueryString = "select isnull(FilterLength,0) as FilterLength,isnull(Filter,'') as Filter,isnull(FilterID,0) as FilterID from servicefilter where ServiceType=" + ServiceType.ToString + " and (clientid is null or clientid = " + _ClientID.ToString + ") order by FilterLength desc,isnull(Clientid,9999),Filter"
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Return DataSet
+
+    End Function
+
+    ''' <summary>
+    ''' This function returns dataset for a given query string
+    ''' </summary>
+    ''' <param name="QueryString"></param>
+    ''' <returns>DataSet</returns>
+    ''' <remarks>A. Agustin 16/06/2010</remarks>
+    Public Function RetrieveDataToDataSet(ByVal QueryString As String) As DataSet
+        Dim DataSet As DataSet
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Return DataSet
+
+    End Function
+
+    ''' <summary>
+    ''' Update Details of existing FleetManager User
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <returns></returns>
+    ''' <remarks>Unique ID (UID) of new User</remarks>
+    Public Function Update(ByVal User As Person) As Int32
+        Dim QueryString As String = ""
+        Dim ChangeUID As String = ""
+        Dim OriginalUser_UID As Int32 = 0
+        Dim NewUser_UID As Int32 = 0
+        Dim Dataset As DataSet
+        Dim SelectString As String = ""
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' 1. Create record in ChangeLog.  Get ID of change.
+        QueryString = "INSERT INTO ChangeLog (UserID, Comments, ModifiedTable, ClientID) VALUES (0,'User details updated by " & My.Application.Info.AssemblyName & " (" & My.User.Name & ")', 'Users', " & User.ClientID & ") ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ChangeUID =REDACTED
+        End If
+
+        ' 2. Get UID of existing user.
+        If User.GUID.Trim.Length = 0 Then
+            OriginalUser_UID =REDACTED User.Surname)
+        Else
+            OriginalUser_UID =REDACTED
+        End If
+
+        'OriginalUser_UID =REDACTED
+
+        ' 3. Modify existing user - set ChangeID.
+        ' 4. Modify existing user - set EndDate to today.
+        QueryString = "UPDATE Users SET ChangeID = " & ChangeUID & ", EndDate=GETDATE() WHERE (UID = "REDACTED")"
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        ' 5. Copy old record as new record.
+
+        Select Case _SQLVersion
+            Case "8" '       SQL Server 2000
+                QueryString = "SELECT TOP 1 * FROM Users WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case "9", "10" ' SQL Server 2005 and 2008
+                QueryString = "SELECT TOP (1) * FROM Users WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case Else
+                QueryString = "SELECT TOP (1) * FROM Users WITH (NOLOCK)"
+        End Select
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            Dim ColumnName As String = ""
+
+            ' Go through and build a list of each column name
+            For Each Column As DataColumn In Dataset.Tables(0).Columns
+                ColumnName = Column.ColumnName
+                If ColumnName <> "UID" Then
+                    SelectString &= ColumnName & ","
+                End If
+            Next
+        End If
+
+        ' Remove trailing comma
+        If SelectString.EndsWith(",") Then SelectString = SelectString.Substring(0, SelectString.Length - 1)
+
+        QueryString = "INSERT INTO Users (" & SelectString & ") SELECT " & SelectString & " FROM Users WHERE UID ='" & OriginalUser_UID & "' ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            NewUser_UID =REDACTED 0, Dataset.Tables(0).Rows(0).Item(0))
+        End If
+
+        ' 6. Update record with new details. 
+        ' 7. Set StartDate to now.
+        ' 8. Set EndDate to NULL.  
+        ' 9. Set ChangeID to NULL.
+        QueryString = "UPDATE Users"
+        QueryString &= " SET"
+        QueryString &= " StartDate = GETDATE()"
+        QueryString &= ", EndDate = NULL"
+        QueryString &= ", ChangeID = NULL"
+        QueryString &= ", FirstName = '" & User.FirstName.Replace("'", "''") & "'"
+        QueryString &= ", LastName = '" & User.Surname.Replace("'", "''") & "'"
+        QueryString &= ", ClientID = " & User.ClientID
+        QueryString &= ", LocationBuilding = '" & User.Building.Replace("'", "''") & "'"
+        QueryString &= ", Status = " & User.Status
+        QueryString &= ", Email = '" & User.EmailAddress.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitID = '" & User.OrganisationalUnitID & "'"
+        QueryString &= ", PositionTitle = '" & User.Title.Replace("'", "''") & "'"
+        QueryString &= ", CostCode = '" & User.CostCode.Replace("'", "''") & "'"
+        QueryString &= ", Budget = " & User.Budget
+        QueryString &= ", ListInDirectory = " & Math.Abs(CInt((Not User.Silent)))
+        QueryString &= ", Custom1 = '" & User.Custom1.Replace("'", "''") & "'"
+        QueryString &= ", Custom2 = '" & User.Custom2.Replace("'", "''") & "'"
+        QueryString &= ", Custom3 = '" & User.Custom3.Replace("'", "''") & "'"
+        QueryString &= ", Custom4 = '" & User.Custom4.Replace("'", "''") & "'"
+        QueryString &= ", Custom5 = '" & User.Custom5.Replace("'", "''") & "'"
+        QueryString &= ", Custom6 = '" & User.Custom6.Replace("'", "''") & "'"
+        QueryString &= ", Custom7 = '" & User.Custom7.Replace("'", "''") & "'"
+        QueryString &= ", Custom8 = '" & User.Custom8.Replace("'", "''") & "'"
+        QueryString &= ", Custom9 = '" & User.Custom9.Replace("'", "''") & "'"
+        QueryString &= ", Custom10 = '" & User.Custom10.Replace("'", "''") & "'"
+        QueryString &= ", Custom11 = '" & User.Custom11.Replace("'", "''") & "'"
+        QueryString &= ", Custom12 = '" & User.Custom12.Replace("'", "''") & "'"
+        QueryString &= ", Custom13 = '" & User.Custom13.Replace("'", "''") & "'"
+        QueryString &= ", Custom14 = '" & User.Custom14.Replace("'", "''") & "'"
+
+        QueryString &= ", MiddleName = '" & User.MiddleName.Replace("'", "''") & "'"
+        QueryString &= ", Salutation = '" & User.Salutation.Replace("'", "''") & "'"
+        QueryString &= ", SecondaryContactNumber = '" & User.SecondaryContactNumber.Replace("'", "''") & "'"
+
+        QueryString &= " WHERE UID = '" & NewUser_UID & "'"
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Dataset = Nothing
+
+        Return NewUser_UID
+    End Function
+
+    Public Function CountExistingBills(ByVal Prefix As String, ByVal billdate As Date, ByVal Account As String) As Integer
+        Dim QueryString As String = ""
+        Dim DataSet As DataSet
+        Dim RowCount As Integer = 0
+
+        QueryString = "select count(*) from " & Prefix & "billdetails where convert(varchar,billdate,103) = '" & billdate.ToShortDateString & "' and clientid = " & _ClientID
+        QueryString &= " and rtrim(AccountNumber) = '" & Account & "'"
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        RowCount = DataSet.Tables(0).Rows(0).Item(0)
+
+        Return RowCount
+
+    End Function
+
+    ''' <summary>
+    ''' Update Details of existing FleetManager User
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <returns></returns>
+    ''' <remarks>Unique ID (UID) of new User</remarks>
+    Public Function Update(ByVal User As Person, ByVal UniqueParameterName As String, ByVal UniqueParameterValue As String, ByVal UniqueParameterIsString As Boolean) As Int32
+        Dim QueryString As String = ""
+        Dim ChangeUID As String = ""
+        Dim OriginalUser_UID As Int32 = 0
+        Dim NewUser_UID As Int32 = 0
+        Dim Dataset As DataSet
+        Dim SelectString As String = ""
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' 1. Create record in ChangeLog.  Get ID of change.
+        QueryString = "INSERT INTO ChangeLog (UserID, Comments, ModifiedTable, ClientID) VALUES (0,'User details updated by " & My.Application.Info.AssemblyName & " (" & My.User.Name & ")', 'Users', " & User.ClientID & ") ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ChangeUID =REDACTED
+        End If
+
+        ' 2. Get UID of existing user.
+        OriginalUser_UID =REDACTED UniqueParameterValue, UniqueParameterIsString)
+
+        ' 3. Modify existing user - set ChangeID.
+        ' 4. Modify existing user - set EndDate to today.
+        QueryString = "UPDATE Users SET ChangeID = " & ChangeUID & ", EndDate=GETDATE() WHERE (UID = "REDACTED")"
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        ' 5. Copy old record as new record.
+
+        Select Case _SQLVersion
+            Case "8" '       SQL Server 2000
+                QueryString = "SELECT TOP 1 * FROM Users WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case "9", "10" ' SQL Server 2005 and 2008
+                QueryString = "SELECT TOP (1) * FROM Users WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case Else
+                QueryString = "SELECT TOP (1) * FROM Users WITH (NOLOCK)"
+        End Select
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            Dim ColumnName As String = ""
+
+            ' Go through and build a list of each column name
+            For Each Column As DataColumn In Dataset.Tables(0).Columns
+                ColumnName = Column.ColumnName
+                If ColumnName <> "UID" Then
+                    SelectString &= ColumnName & ","
+                End If
+            Next
+        End If
+
+        ' Remove trailing comma
+        If SelectString.EndsWith(",") Then SelectString = SelectString.Substring(0, SelectString.Length - 1)
+
+        QueryString = "INSERT INTO Users (" & SelectString & ") SELECT " & SelectString & " FROM Users WHERE UID ='" & OriginalUser_UID & "' ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            NewUser_UID =REDACTED 0, Dataset.Tables(0).Rows(0).Item(0))
+        End If
+
+        ' 6. Update record with new details. 
+        ' 7. Set StartDate to now.
+        ' 8. Set EndDate to NULL.  
+        ' 9. Set ChangeID to NULL.
+        QueryString = "UPDATE Users"
+        QueryString &= " SET"
+        QueryString &= " StartDate = GETDATE()"
+        QueryString &= ", EndDate = NULL"
+        QueryString &= ", ChangeID = NULL"
+        QueryString &= ", FirstName = '" & User.FirstName.Replace("'", "''") & "'"
+        QueryString &= ", LastName = '" & User.Surname.Replace("'", "''") & "'"
+        QueryString &= ", ClientID = " & User.ClientID
+        QueryString &= ", LocationBuilding = '" & User.Building.Replace("'", "''") & "'"
+        QueryString &= ", Status = " & User.Status
+        QueryString &= ", Email = '" & User.EmailAddress.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitID = '" & User.OrganisationalUnitID & "'"
+        QueryString &= ", PositionTitle = '" & User.Title.Replace("'", "''") & "'"
+        QueryString &= ", CostCode = '" & User.CostCode.Replace("'", "''") & "'"
+        QueryString &= ", Budget = " & User.Budget
+        QueryString &= ", ListInDirectory = " & Math.Abs(CInt((Not User.Silent)))
+        QueryString &= ", Custom1 = '" & User.Custom1.Replace("'", "''") & "'"
+        QueryString &= ", Custom2 = '" & User.Custom2.Replace("'", "''") & "'"
+        QueryString &= ", Custom3 = '" & User.Custom3.Replace("'", "''") & "'"
+        QueryString &= ", Custom4 = '" & User.Custom4.Replace("'", "''") & "'"
+        QueryString &= ", Custom5 = '" & User.Custom5.Replace("'", "''") & "'"
+        QueryString &= ", Custom6 = '" & User.Custom6.Replace("'", "''") & "'"
+        QueryString &= ", Custom7 = '" & User.Custom7.Replace("'", "''") & "'"
+        QueryString &= ", Custom8 = '" & User.Custom8.Replace("'", "''") & "'"
+        QueryString &= ", Custom9 = '" & User.Custom9.Replace("'", "''") & "'"
+        QueryString &= ", Custom10 = '" & User.Custom10.Replace("'", "''") & "'"
+        QueryString &= ", Custom11 = '" & User.Custom11.Replace("'", "''") & "'"
+        QueryString &= ", Custom12 = '" & User.Custom12.Replace("'", "''") & "'"
+        QueryString &= ", Custom13 = '" & User.Custom13.Replace("'", "''") & "'"
+        QueryString &= ", Custom14 = '" & User.Custom14.Replace("'", "''") & "'"
+
+        QueryString &= ", MiddleName = '" & User.MiddleName.Replace("'", "''") & "'"
+        QueryString &= ", Salutation = '" & User.Salutation.Replace("'", "''") & "'"
+        QueryString &= ", SecondaryContactNumber = '" & User.SecondaryContactNumber.Replace("'", "''") & "'"
+
+        QueryString &= " WHERE UID = '" & NewUser_UID & "'"
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        Dataset = Nothing
+
+        Return NewUser_UID
+    End Function
+
+    ''' <summary>
+    ''' Update Details of existing FleetManager Service
+    ''' </summary>
+    ''' <param name="Service"></param>
+    ''' <returns>Unique ID (UID) of new Service</returns>
+    ''' <remarks></remarks>
+    Public Function Update(ByVal Service As Phone) As Int32
+        Dim QueryString As String = ""
+        Dim ChangeUID As String = ""
+        Dim OriginalPhone_UID As Int32 = 0
+        Dim NewPhone_UID As Int32 = 0
+        Dim Dataset As DataSet
+        Dim SelectString As String = ""
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' 1. Create record in ChangeLog.  Get ID of change.
+        QueryString = "INSERT INTO ChangeLog (UserID, Comments, ModifiedTable, ClientID) VALUES (0,'Service details updated by " & My.Application.Info.AssemblyName & " (" & My.User.Name & ")', 'Service', " & Service.ClientID & ") ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ChangeUID =REDACTED
+        End If
+
+        ' 2. Get UID of existing phone.
+        OriginalPhone_UID =REDACTED
+
+        ' 3. Modify existing phone - set ChangeID.
+        ' 4. Modify existing phone - set EndDate to today.
+        QueryString = "UPDATE Service SET ChangeID = " & ChangeUID & ", EndDate=GETDATE() WHERE (UID = "REDACTED")"
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        ' 5. Copy old record as new record.  First select a single record to get the list of columns.
+        'QueryString = "SELECT TOP (1) * FROM Service WITH (NOLOCK)" ' WHERE UID ='" & NewPhone_ID & "'"
+
+        Select Case _SQLVersion
+            Case "8" '       SQL Server 2000
+                QueryString = "SELECT TOP 1 * FROM Service WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case "9", "10" ' SQL Server 2005 and 2008
+                QueryString = "SELECT TOP (1) * FROM Service WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case Else
+                QueryString = "SELECT TOP (1) * FROM Service WITH (NOLOCK)"
+        End Select
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            Dim ColumnName As String = ""
+
+            ' Go through and build a list of each column name
+            For Each Column As DataColumn In Dataset.Tables(0).Columns
+                ColumnName = Column.ColumnName
+                If ColumnName <> "UID" Then
+                    SelectString &= ColumnName & ","
+                End If
+            Next
+        End If
+
+        ' Remove trailing comma
+        If SelectString.EndsWith(",") Then SelectString = SelectString.Substring(0, SelectString.Length - 1)
+
+        QueryString = "INSERT INTO Service (" & SelectString & ") SELECT " & SelectString & " FROM Service WHERE UID ='" & OriginalPhone_UID & "' ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            NewPhone_UID =REDACTED
+        End If
+
+        ' 6. Update record with new details. 
+        ' 7. Set StartDate to now.
+        ' 8. Set EndDate to NULL.  
+        ' 9. Set ChangeID to NULL.
+        QueryString = "UPDATE Service"
+        QueryString &= " SET"
+        QueryString &= " StartDate = GETDATE()"
+        QueryString &= ", EndDate = NULL"
+        QueryString &= ", ChangeID = NULL"
+        QueryString &= ", ServiceNumber = '" & Service.Number.Replace("'", "''") & "'"
+        QueryString &= ", UserID = "REDACTED", OrgUnitID = " & Service.OrganisationalUnitID
+        QueryString &= ", ClientID = " & Service.ClientID
+        QueryString &= ", ServiceType = " & Service.ServiceType
+        QueryString &= ", ServiceProviderID = " & Service.ProviderID
+        QueryString &= ", ProviderAccountNumber = '" & Service.AccountNumber.Replace("'", "''") & "'"
+        QueryString &= ", Status = " & Service.Status
+        QueryString &= ", ListInDirectory = " & Math.Abs(CInt((Not Service.Silent)))
+        QueryString &= ", CostCode = '" & Service.CostCode.Replace("'", "''") & "'"
+        QueryString &= ", Feature1 = " & Service.Feature1
+        QueryString &= ", Feature2 = " & Service.Feature2
+        QueryString &= ", Feature3 = " & Service.Feature3
+        QueryString &= ", Feature4 = " & Service.Feature4
+        QueryString &= ", Feature5 = " & Service.Feature5
+        QueryString &= ", Feature6 = " & Service.Feature6
+        QueryString &= ", Feature7 = " & Service.Feature7
+        QueryString &= ", Feature8 = " & Service.Feature8
+        QueryString &= ", Feature9 = " & Service.Feature9
+        QueryString &= ", Feature0 = " & Service.Feature0
+        QueryString &= ", Spare1 = '" & Service.Spare1.Replace("'", "''") & "'"
+        QueryString &= ", Spare2 = '" & Service.Spare2.Replace("'", "''") & "'"
+        QueryString &= ", Spare3 = '" & Service.Spare3.Replace("'", "''") & "'"
+        QueryString &= ", Spare4 = '" & Service.Spare4.Replace("'", "''") & "'"
+        QueryString &= ", Spare5 = '" & Service.Spare5.Replace("'", "''") & "'"
+        QueryString &= ", budget = " & Service.Budget
+        QueryString &= ", NetworkTypeID = " & Service.NetworkTypeID
+        QueryString &= ", GenericUID = '" & Service.GUID.Replace("'", "''") & "'"
+        QueryString &= ", RebillingPlanId = " & Service.RebillingPlanID
+        QueryString &= ", Comments = '" & Service.Comment & "'"
+        QueryString &= " WHERE UID = "REDACTED"'' <summary>
+    ''' Update Details of existing FleetManager OU
+    ''' </summary>
+    ''' <param name="OU"></param>
+    ''' <returns>Unique ID (UID) of new OU</returns>
+    ''' <remarks></remarks>
+    Public Function Update(ByVal OU As OrganisationalUnit) As Int32
+        Dim QueryString As String = ""
+        Dim ChangeUID As String = ""
+        Dim OriginalOU_UID As Int32 = 0
+        Dim NewOU_UID As Int32 = 0
+        Dim Dataset As DataSet
+        Dim SelectString As String = ""
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' 1. Create record in ChangeLog.  Get ID of change.
+        QueryString = "INSERT INTO ChangeLog (UserID, Comments, ModifiedTable, ClientID) VALUES (0,'OU details updated by " & My.Application.Info.AssemblyName & " (" & My.User.Name & ")', 'ClientOrganisationUnit', " & OU.ClientID & ") ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ChangeUID =REDACTED
+        End If
+
+        ' 2. Get ID of existing Organisational Unit.
+        OriginalOU_UID =REDACTED
+
+        ' 3. Modify existing Organisational Unit - set ChangeID.
+        ' 4. Modify existing Organisational Unit - set EndDate to today.
+        QueryString = "UPDATE ClientOrganisationUnit SET ChangeID = " & ChangeUID & ", EndDate=GETDATE() WHERE (UID = "REDACTED")"
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        ' 5. Copy old record as new record.  First select a single record to get the list of columns.
+        'QueryString = "SELECT TOP 1 * FROM ClientOrganisationUnit WITH (NOLOCK)" ' WHERE UID ="REDACTED" DK Changes (1) = 1 to fix SQL Error 9/12/2009
+
+        Select Case _SQLVersion
+            Case "8" '       SQL Server 2000
+                QueryString = "SELECT TOP 1 * FROM ClientOrganisationUnit WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case "9", "10" ' SQL Server 2005 and 2008
+                QueryString = "SELECT TOP (1) * FROM ClientOrganisationUnit WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case Else
+                QueryString = "SELECT TOP (1) * FROM ClientOrganisationUnit WITH (NOLOCK)"
+        End Select
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            Dim ColumnName As String = ""
+
+            ' Go through and build a list of each column name
+            For Each Column As DataColumn In Dataset.Tables(0).Columns
+                ColumnName = Column.ColumnName
+                If ColumnName <> "UID" Then
+                    SelectString &= ColumnName & ","
+                End If
+            Next
+        End If
+
+        ' Remove trailing comma
+        If SelectString.EndsWith(",") Then SelectString = SelectString.Substring(0, SelectString.Length - 1)
+
+        QueryString = "INSERT INTO ClientOrganisationUnit (" & SelectString & ") SELECT " & SelectString & " FROM ClientOrganisationUnit WHERE UID ="REDACTED" ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            NewOU_UID =REDACTED 0, Dataset.Tables(0).Rows(0).Item(0))
+        End If
+
+        ' 6. Update record with new details. 
+        ' 7. Set StartDate to now.
+        ' 8. Set EndDate to NULL.  
+        ' 9. Set ChangeID to NULL.
+        QueryString = "UPDATE ClientOrganisationUnit"
+        QueryString &= " SET"
+        QueryString &= " StartDate = GETDATE()"
+        QueryString &= ", EndDate = NULL"
+        QueryString &= ", ChangeID = NULL"
+        QueryString &= ", OrgUnitName = '" & OU.Name.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitParent = " & OU.ParentOrganisationalUnitID
+        QueryString &= ", ClientID = " & OU.ClientID
+        QueryString &= ", OrgUnitCostCentre = '" & OU.CostCode.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitOverallBudget = " & OU.Budget
+        QueryString &= ", OrgUnitIndividualBudget = " & OU.DefaultPersonBudget
+        QueryString &= ", OrgUnitExcludeDirectory = " & Math.Abs(CInt(OU.Silent))
+        QueryString &= ", OrgUnitLevel = 1"
+        QueryString &= ", Custom1 = '" & OU.Custom1.Replace("'", "''") & "'"
+        QueryString &= ", Custom2 = '" & OU.Custom2.Replace("'", "''") & "'"
+        QueryString &= ", Custom3 = '" & OU.Custom3.Replace("'", "''") & "'"
+        QueryString &= ", Custom4 = '" & OU.Custom4.Replace("'", "''") & "'"
+        QueryString &= ", Custom5 = '" & OU.Custom5.Replace("'", "''") & "'"
+        QueryString &= ", Custom6 = '" & OU.Custom6.Replace("'", "''") & "'"
+        QueryString &= ", Custom7 = '" & OU.Custom7.Replace("'", "''") & "'"
+        QueryString &= ", Custom8 = '" & OU.Custom8.Replace("'", "''") & "'"
+        QueryString &= ", Custom9 = '" & OU.Custom9.Replace("'", "''") & "'"
+        QueryString &= ", Custom10 = '" & OU.Custom10.Replace("'", "''") & "'"
+        QueryString &= ", RebillingPlanId = " & OU.RebillingPlanID
+        QueryString &= ", GenericUID = '" & OU.GUID.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitStreetAddress = '" & OU.StreetAddress.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitSuburb = '" & OU.Suburb.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitState = " & OU.State
+        QueryString &= ", OrgUnitCountry = '" & OU.Country.Replace("'", "''") & "'"
+        QueryString &= ", OrgUnitPostCode = '" & OU.PostCode.Replace("'", "''") & "'"
+
+        QueryString &= " WHERE UID = "REDACTED"'' <summary>
+    ''' Update Details of existing FleetManager Login
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <returns></returns>
+    ''' <remarks>Unique ID (UID) of new User</remarks>
+    Public Function Update(ByVal User As Login) As Int32 ' TODO: Requires testing
+        Dim QueryString As String = ""
+        Dim ChangeUID As String = ""
+        Dim OriginalLogin_UID As Int32 = 0
+        Dim NewLogin_UID As Int32 = 0
+        Dim Dataset As DataSet
+        Dim SelectString As String = ""
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' 1. Create record in ChangeLog.  Get ID of change.
+        QueryString = "INSERT INTO ChangeLog (UserID, Comments, ModifiedTable, ClientID) VALUES (0,'UserLogin details updated by " & My.Application.Info.AssemblyName & " (" & My.User.Name & ")', 'UserLogin', " & User.ClientID & ") ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            ChangeUID =REDACTED
+        End If
+
+        ' 2. Get UID of existing user.
+        OriginalLogin_UID =REDACTED
+
+        ' 3. Modify existing user - set ChangeID.
+        ' 4. Modify existing user - set EndDate to today.
+        QueryString = "UPDATE UserLogin SET ChangeID = " & ChangeUID & ", EndDate=GETDATE() WHERE (UID = "REDACTED")"
+        _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+
+        ' 5. Copy old record as new record.
+        'QueryString = "SELECT TOP (1) * FROM UserLogin WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+
+        Select Case _SQLVersion
+            Case "8" '       SQL Server 2000
+                QueryString = "SELECT TOP 1 * FROM UserLogin WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case "9", "10" ' SQL Server 2005 and 2008
+                QueryString = "SELECT TOP (1) * FROM UserLogin WITH (NOLOCK)" ' WHERE UID ='" & OriginalUser_ID & "'"
+            Case Else
+                QueryString = "SELECT TOP (1) * FROM UserLogin WITH (NOLOCK)"
+        End Select
+
+        Dataset = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            Dim ColumnName As String = ""
+
+            ' Go through and build a list of each column name
+            For Each Column As DataColumn In Dataset.Tables(0).Columns
+                ColumnName = Column.ColumnName
+                If ColumnName <> "UID" Then
+                    SelectString &= ColumnName & ","
+                End If
+            Next
+        End If
+
+        ' Remove trailing comma
+        If SelectString.EndsWith(",") Then SelectString = SelectString.Substring(0, SelectString.Length - 1)
+
+        QueryString = "INSERT INTO UserLogin (" & SelectString & ") SELECT " & SelectString & " FROM UserLogin WHERE UID ='" & OriginalLogin_UID & "' ; SELECT SCOPE_IDENTITY() AS ID"
+
+        Dataset = _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+        If Dataset.Tables(0).Rows.Count > 0 Then
+            NewLogin_UID =REDACTED 0, Dataset.Tables(0).Rows(0).Item(0))
+        End If
+
+        ' 6. Update record with new details. 
+        ' 7. Set StartDate to now.
+        ' 8. Set EndDate to NULL.  
+        ' 9. Set ChangeID to NULL.
+        QueryString = "UPDATE UserLogin"
+        QueryString &= " SET"
+
+        If User.StartDate = Date.MinValue Then
+            QueryString &= ", StartDate = NULL"
+        Else
+            QueryString &= ", StartDate = cast('" & User.StartDate & "' as datetime)"
+        End If
+
+        QueryString &= ", EndDate = NULL"
+        QueryString &= ", SiteID = " & User.SiteID
+        QueryString &= ", LoginName = '" & User.LoginName.Replace("'", "''") & "'"
+        QueryString &= ", Password = '" & User.Password.Replace("'", "''") & "'"
+
+        If User.PasswordExpiryDate = Date.MinValue Then
+            QueryString &= ", PasswordExp = NULL"
+        Else
+            QueryString &= ", PasswordExp = cast('" & User.PasswordExpiryDate & "' as datetime)"
+        End If
+
+        QueryString &= ", ClientID = " & User.ClientID
+        QueryString &= ", UserID = "REDACTED", ChangeID = " & User.ChangeID
+        QueryString &= ", Home = '" & User.Home.Replace("'", "''") & "'"
+        QueryString &= ", UserRole = " & User.UserRoleID
+        QueryString &= ", FirstLogin = " & Math.Abs(CInt(User.FirstLogin))
+
+        If User.LastLogin = Date.MinValue Then
+            QueryString &= ", LastLogin = NULL"
+        Else
+            QueryString &= ", LastLogin = cast('" & User.LastLogin & "' as datetime)"
+        End If
+
+        QueryString &= ", OrgUnitID = " & User.OrgUnitID
+        QueryString &= ", UserActive = " & Math.Abs(CInt(User.UserActive))
+        QueryString &= ", Status = " & User.Status
+        QueryString &= ", PhoneNumber = '" & User.PhoneNumber.Replace("'", "''") & "'"
+        QueryString &= ", Mobile = '" & User.MobileNumber.Replace("'", "''") & "'"
+        QueryString &= ", Fax = '" & User.FacsimileNumber.Replace("'", "''") & "'"
+        QueryString &= ", Email = '" & User.EmailAddress.Replace("'", "''") & "'"
+        QueryString &= ", HideAllocated = " & Math.Abs(CInt(User.HideAllocated))
+        QueryString &= ", RPP = " & User.RPP
+        QueryString &= ", MarkupSecurity = '" & User.MarkupSecurity.Replace("'", "''") & "'"
+        QueryString &= ", MarkupDisplay = '" & User.MarkupDisplay.Replace("'", "''") & "'"
+        QueryString &= ", GenericUID = '" & User.GUID.Replace("'", "''") & "'"
+        QueryString &= " WHERE UID = "REDACTED"'' <summary>
+    ''' Updates the TotalAmount, GST and TotalAmount + GST columns in BillDetails table
+    ''' </summary>
+    ''' <param name="UID"></param>
+    ''' <param name="Amount"></param>
+    ''' <param name="TablePrefix"></param>
+    ''' <returns>Status (if a a record was successfully updated)</returns>
+    ''' <remarks></remarks>
+    Public Function UpdateBillTotal(ByVal UID As Int32, ByVal Amount As Double, ByVal TablePrefix As String, ByVal BillDate As Date) As Boolean
+        Dim IsSuccessful As Boolean = False
+        Dim QueryString As String
+        Dim GSTAmount As Double = Amount * 0.1
+        Dim TotalInc As Double = Amount + GSTAmount
+
+        QueryString = "Update " & TablePrefix & "BillDetails set " & _
+                      "ExpectedTotalEx = " & Amount & ", " & _
+                      "ExpectedGST = " & GSTAmount & ", " & _
+                      "ExpectedTotalInc = " & TotalInc & ", " & _
+                      "ActualTotalEx = " & Amount & ", " & _
+                      "ActualGST = " & GSTAmount & ", " & _
+                      "ActualTotalInc = " & TotalInc & ", " & _
+                      "DatabaseTotalEx = " & Amount & ", " & _
+                      "DatabaseGST = " & GSTAmount & ", " & _
+                      "DatabaseTotalInc = " & TotalInc & ", " & _
+                      "UploadDate = getdate(), " & _
+                      "DateImported = getdate(), " & _
+                      "billDay = day(billdate) " & _
+                      "where UID = "REDACTED"exec AllCalcPreProcessingOrgUnit_bill @billid = " & UID
+            _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+            IsSuccessful = True
+        Catch ex As Exception
+            IsSuccessful = False
+        End Try
+
+        Return IsSuccessful
+    End Function
+
+    ''' <summary>
+    ''' This procedure will update the last date run of the Rental Bill Importer in the Client Features table
+    ''' </summary>
+    ''' <remarks>A. Agustin 02/06/2010</remarks>
+    Public Function UpdateRentalBillImporterSchedule(ByVal servicetype As Integer) As Boolean
+        Dim IsSuccessful As Boolean = True
+        Dim SQLString As String = "Update ClientFeatures set Text2 = convert(varchar,getdate(),103) + ' ' + convert(varchar,getdate(),108) where clientid = " & _ClientID.ToString & " and description = 'RentalBillImporterSchedule-" & servicetype.ToString & "'"
+        Try
+            _Database.Execute(SQLString, FleetManagerDatabaseType.Data, 300)
+        Catch ex As Exception
+            IsSuccessful = False
+        End Try
+
+        Return IsSuccessful
+
+    End Function
+
+    ''' <summary>
+    ''' Calls the Findservice Stored procedure in Fleetmanager
+    ''' </summary>
+    ''' <param name="Bill"></param>
+    ''' <param name="ServiceID"></param>
+    ''' <param name="UserID"></param>
+    ''' <param name="OrgUnitID"></param>
+    ''' <remarks></remarks>
+    Public Sub FindService(ByVal Bill As Bill, ByRef ServiceID As Int32, ByRef UserID As Int32, ByRef OrgUnitID As Int32, ByVal BillingAccount As Account)
+        Dim ProcedureName As String = "FindService"
+
+        Dim DataCommand As SqlClient.SqlCommand
+        DataCommand = New SqlClient.SqlCommand(ProcedureName)
+
+        DataCommand.CommandTimeout = 0
+        DataCommand.CommandType = CommandType.StoredProcedure
+
+        DataCommand.Parameters.Add("@serviceNo", SqlDbType.Char)
+        If Bill.AddSiteCode Then
+            If Bill.Site = "" Then
+                DataCommand.Parameters("@serviceNo").Value = Bill.Extension
+            Else
+                DataCommand.Parameters("@serviceNo").Value = Bill.Site & "-" & Bill.Extension
+            End If
+        Else
+            DataCommand.Parameters("@serviceNo").Value = Bill.Extension
+        End If
+
+        DataCommand.Parameters("@serviceNo").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@clientID", SqlDbType.Int)
+        DataCommand.Parameters("@clientID").Value = _ClientID
+        DataCommand.Parameters("@clientID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@provider", SqlDbType.Int)
+        DataCommand.Parameters("@provider").Value = Bill.ProviderID
+        DataCommand.Parameters("@provider").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@accountNo", SqlDbType.VarChar)
+        DataCommand.Parameters("@accountNo").Value = BillingAccount.AccountNumber
+        DataCommand.Parameters("@accountNo").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@serviceType", SqlDbType.Int)
+        DataCommand.Parameters("@serviceType").Value = Bill.ServiceType
+        DataCommand.Parameters("@serviceType").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@serviceID", SqlDbType.Int)
+        DataCommand.Parameters("@serviceID").Value = 0
+        DataCommand.Parameters("@serviceID").Direction = ParameterDirection.Output
+
+        DataCommand.Parameters.Add("@userID", SqlDbType.Int)
+        DataCommand.Parameters("@userID").Value = 0
+        DataCommand.Parameters("@userID").Direction = ParameterDirection.InputOutput
+
+        DataCommand.Parameters.Add("@orgID", SqlDbType.Int)
+        DataCommand.Parameters("@orgID").Value = BillingAccount.OrgUnitID
+        DataCommand.Parameters("@orgID").Direction = ParameterDirection.InputOutput
+
+        _Database.ExecuteStoredProcedure(DataCommand, Definitions.FleetManagerDatabaseType.Data)
+
+        ServiceID = DataCommand.Parameters("@serviceID").Value
+        UserID =REDACTED"@userID").Value
+        OrgUnitID = DataCommand.Parameters("@orgID").Value
+    End Sub
+
+    ''' <summary>
+    ''' Retrieve BillCode from FleetManager Database
+    ''' </summary>
+    ''' <param name="CallTypeDest"></param>
+    ''' <param name="Prefix"></param>
+    ''' <param name="CallType"></param>
+    ''' <param name="Billingcodeid"></param>
+    ''' <param name="GraphGroupID"></param>
+    ''' <remarks>Returns CallType, Billingcodeid, Graphgroupid</remarks>
+    Public Sub GetBillCode(ByVal ProviderID As Integer, ByVal CallTypeDest As String, ByVal Prefix As String, ByRef CallType As String, ByRef BillingCodeID As Int32, ByRef GraphGroupID As Int32)
+        Dim QueryString As String
+        Dim DataSet As DataSet
+
+        QueryString = "SELECT isnull(" & Prefix & "BillingCodes.ID,0) as ID, isnull(" & Prefix & "BillingCodes.GraphGroupID,0) as GraphGroupID, isnull(" & Prefix & "BillingCodes.Description,'') as Description " + _
+                "FROM " & Prefix & "BillingCodes WITH (NOLOCK) INNER JOIN " & _
+                Prefix & "BillDescriptionLink ON " & Prefix & "BillingCodes.ID = " & Prefix & "BillDescriptionLink.BillingCodeID " & _
+                "WHERE (" & Prefix & "BillDescriptionLink.BillDescription = '" + CallTypeDest.ToString.Replace("'", "''") + "' and " & Prefix & "BillDescriptionLink.ServiceProviderID = " & ProviderID.ToString & ")"
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            BillingCodeID = DataSet.Tables(0).Rows(0).Item("ID")
+            GraphGroupID = DataSet.Tables(0).Rows(0).Item("GraphGroupID")
+            CallType = DataSet.Tables(0).Rows(0).Item("Description")
+        Else
+            QueryString = "SELECT ID, GraphGroupID, Description from " & Prefix & "BillingCodes WITH (NOLOCK) " & _
+            " WHERE (serviceProviderID = 0) and (Description = 'Unassigned')"
+
+            DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+            If DataSet.Tables(0).Rows.Count > 0 Then
+                BillingCodeID = DataSet.Tables(0).Rows(0).Item("ID")
+                GraphGroupID = DataSet.Tables(0).Rows(0).Item("GraphGroupID")
+                CallType = DataSet.Tables(0).Rows(0).Item("Description")
+            End If
+        End If
+
+        DataSet = Nothing
+    End Sub
+
+    ''' <summary>
+    ''' This procedure will return the OrgUnitDetails such as OrgUnitName and Cost centre for a given OrgUnitID
+    ''' </summary>
+    ''' <param name="OrgUnitid"></param>
+    ''' <param name="OrgUnitName"></param>
+    ''' <param name="OrgUnitCostCentre"></param>
+    ''' <remarks>A. Agustin 16/06/2010</remarks>
+    Public Sub GetOrganisationDetails(ByVal OrgUnitid As Integer, ByRef OrgUnitName As String, ByRef OrgUnitCostCentre As String)
+        Dim DataSet As DataSet
+        OrgUnitName = ""
+        OrgUnitCostCentre = ""
+
+
+        Dim QueryString As String = "select isnull(OrgUnitName,'') as OrgName,isnull(OrgUnitCostCentre,'') as OrgCostCentre from currentclientorganisationunitview where orgunitid = " & OrgUnitid & " and clientid = " & _ClientID.ToString
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            OrgUnitName = DataSet.Tables(0).Rows(0).Item("OrgName")
+            OrgUnitCostCentre = DataSet.Tables(0).Rows(0).Item("OrgCostCentre")
+        End If
+
+        DataSet = Nothing
+
+    End Sub
+
+    ''' <summary>
+    ''' This procedure will return the Children of an OrgUnit
+    ''' </summary>
+    ''' <param name="OrgIDs"></param>
+    ''' <param name="OrgChildrens"></param>
+    ''' <remarks>A. Agustin 16/06/2010</remarks>
+    Public Sub GetOrgChildren(ByVal OrgIDs As String, ByRef OrgChildrens As String)
+        Dim QueryString As String = ""
+        Dim DataSet As DataSet
+
+        QueryString = "Select isnull(OrgUnitID,'') as OrgUnitID,isnull(OrgUnitParent,'') as OrgUnitParent from CurrentClientOrganisationUnitView where "
+        QueryString &= "Clientid = " & _ClientID.ToString & " and enddate is null  and OrgUnitParent = " & OrgIDs
+        QueryString &= "order by orgunitparent,orgunitid"
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        For Each Row As DataRow In DataSet.Tables(0).Rows
+            If OrgChildrens <> "" Then
+                OrgChildrens &= ","
+            End If
+
+            OrgChildrens &= Row("OrgUnitID")
+            GetOrgChildren(Row("OrgUnitID"), OrgChildrens)
+        Next
+
+
+    End Sub
+
+    ''' <summary>
+    ''' Retrieve Unique ID (UID) of existing Provider in Fleetmanager database
+    ''' </summary>
+    ''' <param name="ProviderCode"></param>
+    ''' <param name="ServiceType"></param>
+    ''' <remarks></remarks>
+    Public Sub GetProvider(ByVal ServiceType As Int32, ByVal ProviderCode As String, ByVal ProviderList As Collections.SortedList, ByRef ProviderID As Int32, ByRef ProviderName As String)
+        ProviderID = -1
+
+        For Each KeyItem In ProviderList.Keys
+            Dim Carrier As Provider = ProviderList(KeyItem)
+            If Carrier.ServiceType = ServiceType And Carrier.ProviderName.Trim.ToLower = ProviderCode.Trim.ToLower Then 'CADS3
+                ProviderID = Carrier.UID
+                ProviderName = Carrier.ProviderName
+                Exit For
+            End If
+        Next
+
+        If ProviderID = -1 Then
+            For Each KeyItem In ProviderList.Keys
+                Dim Carrier As Provider = ProviderList(KeyItem)
+                If Carrier.ServiceType = ServiceType And Carrier.ProviderCode.Trim.ToLower = ProviderCode.Trim.ToLower Then 'CADSWin
+                    ProviderID = Carrier.UID
+                    ProviderName = Carrier.ProviderName
+                    Exit For
+                End If
+            Next
+        End If
+
+        If ProviderID = -1 Then ProviderID = 0
+    End Sub
+
+    ''' <summary>
+    ''' This procedure will get the schedule of the Rental bill Importer
+    ''' </summary>
+    ''' <remarks>A. Agustin 31/05/2010</remarks>
+    Public Sub GetRentalBillSchedule(ByRef LastDateRun As DateTime, ByRef DayRun As Integer, ByVal ServiceType As Integer)
+
+        Try
+
+            Dim SQLString As String = "Select isnull(text1,'') as DayRun, isnull(text2,'') as LastDateRun from ClientFeatures where description = 'RentalBillImporterSchedule-" & ServiceType.ToString & "' and clientid = " & _ClientID.ToString
+
+
+            Dim Data As DataSet = _Database.Execute(SQLString, FleetManagerDatabaseType.Data, 300)
+
+            If Data.Tables(0).Rows.Count > 0 Then
+                If IsNumeric(Data.Tables(0).Rows(0).Item(0)) Then
+                    DayRun = CInt(Data.Tables(0).Rows(0).Item(0))
+                Else
+                    DayRun = 0
+                End If
+
+                If IsDate(Data.Tables(0).Rows(0).Item(1)) Then
+                    LastDateRun = CDate(Data.Tables(0).Rows(0).Item(1))
+                Else
+                    LastDateRun = CDate("1/1/1900")
+                End If
+            End If
+
+        Catch ex As Exception
+            Debug.Print("FMConnection. GetRentalBillSchedule.  The error was " & ex.ToString)
+        End Try
+
+    End Sub
+
+    ''' <summary>
+    ''' This procedure will retrieve the table prefix and description of a given service
+    ''' </summary>
+    ''' <param name="GUID"></param>
+    ''' <param name="TablePrefix"></param>
+    ''' <param name="ServiceDescription"></param>
+    ''' <remarks></remarks>
+    Public Sub GetServiceDescription(ByVal GUID As Int32, ByRef TablePrefix As String, ByRef ServiceDescription As String)
+        Dim QueryString As String = ""
+        TablePrefix = ""
+        ServiceDescription = ""
+
+        Dim Dataset As DataSet
+
+        QueryString = "select isnull(tableprefix,'') as tableprefix,isnull(description,'') as description from servicetype  where UID = "REDACTED"tableprefix")
+                ServiceDescription = Dataset.Tables(0).Rows(0).Item("description")
+            End If
+        Catch ex As Exception
+            Err.Raise(vbObjectError + 521, GetExecutingAssembly.GetName.Name, "The Table prefix could not be retrieved from this Service type." & _
+                      ControlChars.Lf & ControlChars.Lf & ex.ToString)
+        End Try
+
+        Dataset = Nothing
+
+    End Sub
+
+    ''' <summary>
+    ''' This procedure will retrieve all the records from CurrentServiceview that have rental charges
+    ''' </summary>
+    ''' <param name="ServicesWithRentalCharges"></param>
+    ''' <remarks>A. Agustin 31/05/2010</remarks>
+    Public Sub GetServicesWithRentalCharges(ByRef ServicesWithRentalCharges As DataSet, ByVal ServiceType As Integer, ByVal IncText As String, ByVal ExText As String, ByVal IncludeActiveServicesOnly As Boolean, ByVal Month As Integer, ByVal Year As Integer, ByVal Prefix As String)
+
+        Dim StringCommand As New StringBuilder
+        Dim MonthToProcess As Integer = Month
+        Dim YearToProcess As Integer = Year
+        'StringCommand.Append("select  isnull(servicenumber,'') as Servicenumber,isnull(servicetype,0) as Servicetype, ")
+        'StringCommand.Append("isnull(ServiceProviderID,0) as ServiceProviderID,isnull(ProviderName,'') as ProviderName, isnull(OrgUnitid,0) as OrgUnitid, isnull(spare3,'') as RentalDescription, ")
+        'StringCommand.Append("case (charindex('-',spare3)) when 0  ")
+        'StringCommand.Append("then  ")
+        'StringCommand.Append("case isnumeric(replace(spare3,'$','')) when 1 then convert(decimal(18,2),replace(spare3,'$','')) else 0.00 end ")
+        'StringCommand.Append("else  ")
+        'StringCommand.Append("case isnumeric(replace(rtrim(ltrim(substring(spare3,charindex('-',spare3)+1,len(spare3) -charindex('-',spare3)+1))),'$','')) ")
+        'StringCommand.Append("when 1 then convert(decimal(18,2),replace(rtrim(ltrim(substring(spare3,charindex('-',spare3)+1,len(spare3) -charindex('-',spare3)+1))),'$','')) ")
+        'StringCommand.Append("else 0.00 end ")
+        'StringCommand.Append("end  as RentalCharges ")
+        'StringCommand.Append("from CurrentServiceview ")
+        'StringCommand.Append("where isnull(Spare3,'') <> '' and ClientID = " & _ClientID.ToString & " and ServiceType = " & ServiceType)
+        'StringCommand.Append(" and spare3 like '%ex%' ")
+        'StringCommand.Append(" order by servicenumber,isnull(spare3,'')")
+
+        ' Select all services with Rental charges taking into account the description in Spare3 column
+        ' Spare3 is used to describe service charges
+
+
+        If Today.Month = Month And Today.Year = Year Then
+            Dim TempDate As Date = Today.AddMonths(-1)
+
+            MonthToProcess = TempDate.Month
+            YearToProcess = TempDate.Year
+
+        End If
+
+        StringCommand.Append("select convert(decimal(18,2),rtrim(replace(replace(replace(rtrim(ltrim(substring(spare3,charindex('-',spare3)+1,len(spare3) -charindex('-',spare3)+1))),'$',''),'" & ExText & "',''),'" & IncText & "','')) ), ")
+        StringCommand.Append("isnull(servicenumber,'') as Servicenumber,isnull(servicetype,0) as Servicetype,  ")
+        StringCommand.Append("isnull(ServiceProviderID,0) as ServiceProviderID,isnull(ProviderName,'') as ProviderName, ")
+        StringCommand.Append(" isnull(OrgUnitid,0) as OrgUnitid, isnull(spare3,'') as RentalDescription,  ")
+        StringCommand.Append("case (charindex('-',spare3))  ")
+        StringCommand.Append("when 0   ")
+        StringCommand.Append("then   ")
+        StringCommand.Append("case isnumeric(replace(spare3,'$',''))  ")
+        StringCommand.Append("when 1 then convert(decimal(18,2),replace(spare3,'$',''))  ")
+        StringCommand.Append("else 0.00  ")
+        StringCommand.Append("end  ")
+        StringCommand.Append("else   ")
+        StringCommand.Append("case isnumeric(replace(rtrim(ltrim(substring(spare3,charindex('-',spare3)+1,len(spare3) -charindex('-',spare3)+1))),'$',''))  ")
+        StringCommand.Append("when 1 then convert(decimal(18,2),replace(rtrim(ltrim(substring(spare3,charindex('-',spare3)+1,len(spare3) -charindex('-',spare3)+1))),'$','')) ")
+        StringCommand.Append("else  ")
+        StringCommand.Append("case isnumeric(rtrim(replace(replace(replace(rtrim(ltrim(substring(spare3,charindex('-',spare3)+1,len(spare3) -charindex('-',spare3)+1))),'$',''),'" & ExText & "',''),'" & IncText & "',''))) ")
+        StringCommand.Append("when 1 then convert(decimal(18,2),rtrim(replace(replace(replace(rtrim(ltrim(substring(spare3,charindex('-',spare3)+1,len(spare3) -charindex('-',spare3)+1))),'$',''),'" & ExText & "',''),'" & IncText & "','')) ) ")
+        StringCommand.Append("else 0.00 end ")
+        StringCommand.Append("end  ")
+        StringCommand.Append("end as RentalCharges  ")
+        StringCommand.Append("from CurrentServiceview  ")
+        StringCommand.Append("where isnull(Spare3,'') <> '' and ClientID = " & ClientID.ToString & " and ServiceType = " & ServiceType.ToString)
+
+        If IncludeActiveServicesOnly Then
+            StringCommand.Append(" and CurrentServiceView.Serviceid in(select serviceid from " & Prefix & "preprocessingservice where billid in(Select uid from " & Prefix & "billdetails where clientid = " & ClientID.ToString & " and billmonth =" & MonthToProcess.ToString & " and billyear = " & YearToProcess.ToString & ") ")
+            StringCommand.Append("and totaltransactions > 0 )")
+        End If
+        StringCommand.Append(" order by servicenumber,isnull(spare3,'') ")
+
+
+        ServicesWithRentalCharges = _Database.Execute(StringCommand.ToString, FleetManagerDatabaseType.Data, 1000)
+
+    End Sub
+
+    ''' <summary>
+    ''' This procedure will retrieve all the records from CurrentServiceview that have rental charges if they have call charges for the given month and year
+    ''' </summary>
+    ''' <param name="ServicesWithRentalCharges"></param>
+    ''' <remarks>D. Robinson 23/03/2011</remarks>
+    Public Sub GetServicesWithRentalCharges(ByRef ServicesWithRentalCharges As DataSet, ByVal ServiceType As Integer, ByVal IncText As String, ByVal ExText As String, ByVal BillMonth As Integer, ByVal BillYear As Integer, ByVal ServicePrefix As String)
+        Dim StringCommand As New StringBuilder
+
+        ' Select all services with Rental charges taking into account the description in Spare3 column
+        ' Spare3 is used to describe service charges
+
+        StringCommand.Append("SELECT     ISNULL(CurrentServiceView.ServiceNumber, '')    AS Servicenumber, ")
+        StringCommand.Append("           ISNULL(CurrentServiceView.ServiceProviderID, 0) AS ServiceProviderID, ")
+        StringCommand.Append("           ISNULL(CurrentServiceView.ProviderName, '')     AS ProviderName, ")
+        StringCommand.Append("           ISNULL(CurrentServiceView.OrgUnitID, 0)         AS OrgUnitid, ")
+        StringCommand.Append("           ISNULL(CurrentServiceView.Spare3, '')           AS RentalDescription, ")
+        StringCommand.Append("           CASE (charindex('-', spare3)) ")
+        StringCommand.Append("               WHEN 0 THEN ")
+        StringCommand.Append("                   CASE isnumeric(replace(spare3, '$', '')) ")
+        StringCommand.Append("                       WHEN 1 THEN ")
+        StringCommand.Append("                           CONVERT(decimal(18, 2), replace(spare3, '$', '')) ")
+        StringCommand.Append("                       ELSE ")
+        StringCommand.Append("                           0.00 ")
+        StringCommand.Append("                       END ")
+        StringCommand.Append("               ELSE ")
+        StringCommand.Append("                   CASE isnumeric(replace(rtrim(ltrim(substring(spare3, charindex('-', spare3) + 1,len(spare3) - charindex('-', spare3) + 1))), '$', '')) ")
+        StringCommand.Append("                       WHEN 1 THEN ")
+        StringCommand.Append("                           CONVERT(decimal(18, 2), replace(rtrim(ltrim(substring(spare3, charindex('-', spare3) + 1, len(spare3) - charindex('-', spare3) + 1))), '$', '')) ")
+        StringCommand.Append("                       ELSE ")
+        StringCommand.Append("                           CASE isnumeric(rtrim(replace(replace(replace(rtrim(ltrim(substring(spare3, charindex('-', spare3) + 1, len(spare3) - charindex('-', spare3) + 1))), '$', ''), '" & ExText & "', ''), '" & IncText & "', ''))) ")
+        StringCommand.Append("                           WHEN 1 THEN ")
+        StringCommand.Append("                               CONVERT(decimal(18, 2), rtrim(replace(replace(replace(rtrim(ltrim(substring(spare3,charindex('-', spare3) + 1, len(spare3) - charindex('-', spare3) + 1))), '$', ''), '" & ExText & "', ''), '" & IncText & "', ''))) ")
+        StringCommand.Append("                           ELSE ")
+        StringCommand.Append("                               0.00 ")
+        StringCommand.Append("                           END ")
+        StringCommand.Append("                       END ")
+        StringCommand.Append("               END ")
+        StringCommand.Append("                                                           AS RentalCharges")
+        StringCommand.Append("FROM       " & ServicePrefix & " & PreProcessingService LEFT OUTER JOIN")
+        StringCommand.Append("                      " & ServicePrefix & " & BillDetails ON " & ServicePrefix & " & PreProcessingService.BillID = " & ServicePrefix & " & BillDetails.UID RIGHT OUTER JOIN")
+        StringCommand.Append("                      CurrentServiceView ON " & ServicePrefix & " & PreProcessingService.ServiceID = CurrentServiceView.UID")
+        StringCommand.Append("WHERE     (ISNULL(CurrentServiceView.Spare3, '') <> '') AND ")
+        StringCommand.Append("          (CurrentServiceView.ClientID = " & ClientID.ToString & ") AND ")
+        StringCommand.Append("          (CurrentServiceView.ServiceType = " & ServiceType.ToString & ") AND ")
+        StringCommand.Append("          (CurrentServiceView.ServiceNumber IN")
+        StringCommand.Append("              (SELECT     CurrentServiceView_1.ServiceNumber")
+        StringCommand.Append("               FROM       " & ServicePrefix & " & PreProcessingService AS " & ServicePrefix & " & PreProcessingService_1 RIGHT OUTER JOIN")
+        StringCommand.Append("                          CurrentServiceView AS CurrentServiceView_1 ON " & ServicePrefix & " & PreProcessingService_1.ServiceID = CurrentServiceView_1.ServiceID")
+        StringCommand.Append("               WHERE      (" & ServicePrefix & " & PreProcessingService_1.ClientID = " & ClientID.ToString & ") AND (" & ServicePrefix & " & PreProcessingService_1.TheMonth = " & BillMonth.ToString & ") AND ")
+        StringCommand.Append("                          (" & ServicePrefix & " & PreProcessingService_1.TheYear = " & BillYear.ToString & ") AND ")
+        StringCommand.Append("                          (" & ServicePrefix & " & PreProcessingService_1.TotalTransactions > 0)))")
+        StringCommand.Append("ORDER BY CurrentServiceView.ServiceNumber, RentalDescription")
+
+
+
+        ServicesWithRentalCharges = _Database.Execute(StringCommand.ToString, FleetManagerDatabaseType.Data, 1000)
+
+    End Sub
+
+    ''' <summary>
+    ''' Get the version of SQL Server in use
+    ''' </summary>
+    ''' <remarks></remarks>
+    Private Sub GetSQLServerVersion()
+        Dim SQLString As String = "SELECT substring(cast(SERVERPROPERTY('productversion') as varchar),0,CONVERT(INT,charindex('.',CONVERT(varchar,SERVERPROPERTY('productversion')))))"
+
+        Try
+            Dim Data As DataSet = _Database.Execute(SQLString, FleetManagerDatabaseType.Data, 300)
+
+            If Data.Tables(0).Rows.Count > 0 Then
+                _SQLVersion = Data.Tables(0).Rows(0).Item(0)
+            End If
+        Catch ex As Exception
+            Debug.Print("Could not determine SQL Version.  The error was " & ex.ToString)
+        End Try
+    End Sub
+
+    Public Sub GetUTSReportsLocation(ByVal ReportID As Integer, ByVal SubReportID As String, ByRef XMLFile As String, ByRef ReportDestination As String)
+        Dim QueryString As String = ""
+        Dim DataSet As DataSet
+
+        XMLFile = ""
+        ReportDestination = ""
+
+        QueryString = "Select isnull(Custom2,'') as Custom2,isnull(Custom3,'') as Custom3 from ReportTypes where Custom1 = '" & SubReportID & "' and ReportID = " & ReportID.ToString
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            XMLFile = DataSet.Tables(0).Rows(0).Item("Custom2")
+            ReportDestination = DataSet.Tables(0).Rows(0).Item("Custom3")
+        End If
+
+    End Sub
+
+    Public Sub Initialize(ByVal ClientID As Int32, ByVal Database As FMDatabase)
+        If ClientID > 0 Then
+            ' TODO:  Search for this clientID.
+            _ClientID = ClientID
+            _Database = Database
+            GetSQLServerVersion()
+        Else
+            Err.Raise(vbObjectError + 514, GetExecutingAssembly.GetName.Name, "Client ID not specified for FleetManager Connection.")
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' Updates the ClientID to a non negative value in BillDetails table
+    ''' </summary>
+    ''' <param name="BillsToProcess"></param>
+    ''' <param name="Prefix"></param>
+    ''' <remarks></remarks>
+    Public Sub UpdateBillDetailsClientID(ByVal BillsToProcess As Collections.SortedList, ByVal Prefix As String)
+        Dim BillList As String = ""
+        Dim QueryString As String = ""
+
+        For Each Item In BillsToProcess.Keys
+            BillList &= BillsToProcess(Item) & ","
+        Next
+
+        If BillList.Length > 0 Then
+            BillList = BillList.Substring(0, BillList.Length - 1)
+
+            QueryString = "Update " & Prefix & "BillDetails set " & _
+                          "ClientID =  abs(ClientID) " & _
+                          "where UID in (" & BillList & ") "
+
+            _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+        End If
+
+    End Sub
+
+    ''' <summary>
+    ''' This procedure will update the trunkcount column of the Route Table
+    ''' </summary>
+    ''' <param name="RouteID"></param>
+    ''' <remarks></remarks>
+    Public Sub UpdateTrunkCount(ByVal RouteID As Integer)
+        Dim QueryString As String = ""
+        Dim TrunkCount As Integer = 0
+        Dim DataSet As New DataSet
+
+        'Count Trunks
+        QueryString = "Select count(*) as cnt from CurrentTrunkView where Clientid = " & _ClientID.ToString & " "
+        QueryString &= "and RouteID = " & RouteID.ToString & " "
+
+        DataSet = _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+        If DataSet.Tables(0).Rows.Count > 0 Then
+            TrunkCount = DataSet.Tables(0).Rows(0).Item("cnt")
+        End If
+
+        QueryString = "Update [Route] set TrunkCount = " & TrunkCount & " where enddate is null "
+        QueryString &= " and Clientid = " & _ClientID.ToString & " and RouteID = " & RouteID.ToString
+
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+
+    End Sub
+
+    ''' <summary>
+    ''' Update Unique ID (UID) of FleetManager User
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <remarks></remarks>
+    Public Sub UpdateUID(ByVal User As Person)
+        Dim QueryString As String = "UPDATE Users SET UserID = "REDACTED" WHERE (UID = "REDACTED")"
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' TODO:  Confirm the above is correct
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+    End Sub
+
+    ''' <summary>
+    ''' Update Unique ID (UID) of FleetManager Service
+    ''' </summary>
+    ''' <param name="Service"></param>
+    ''' <remarks></remarks>
+    Public Sub UpdateUID(ByVal Service As Phone)
+        Dim QueryString As String = "UPDATE Service SET ServiceID = " & Service.UID & " WHERE (UID = "REDACTED")"
+        ' TODO:  Confirm the above is correct
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+    End Sub
+
+    ''' <summary>
+    ''' Update Unique ID (UID) of FleetManager OU
+    ''' </summary>
+    ''' <param name="OU"></param>
+    ''' <remarks></remarks>
+    Public Sub UpdateUID(ByVal OU As OrganisationalUnit)
+        Dim QueryString As String = "UPDATE ClientOrganisationalUnit SET OrgUnitID = " & OU.UID & " WHERE (UID = "REDACTED")"
+        ' TODO:  Confirm the above is correct
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        _Database.Execute(QueryString, FleetManagerDatabaseType.Data, 300)
+
+    End Sub
+
+    ''' <summary>
+    ''' Update Unique ID (UID) of FleetManager Login
+    ''' </summary>
+    ''' <param name="User"></param>
+    ''' <remarks></remarks>
+    Public Sub UpdateUID(ByVal User As Login) ' TODO: Requires testing
+        Dim QueryString As String = "UPDATE UserLogin SET UserID = "REDACTED" WHERE (UID = "REDACTED")"
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' TODO:  Confirm the above is correct
+        _Database.Execute(QueryString, Definitions.FleetManagerDatabaseType.Control, 300)
+
+    End Sub
+
+
+
+End Class

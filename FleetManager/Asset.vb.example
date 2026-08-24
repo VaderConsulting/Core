@@ -1,0 +1,77 @@
+﻿<Obsolete("The Asset Class is not complete")> _
+Public Class Asset
+
+    Private _ClientID As Int32 = 0             ' ID of client
+    Private _ParentID As Int32 = 0             ' ID of client
+    Private _StartDate As Date = Date.Now
+    Private _EndDate As Date = Date.Now
+    Private _ChangeID As Int32 = 0
+    Private _Status As Int32 = 9               ' Active
+    Private _GUID As String = ""
+
+    ' Note: This class is INCOMPLETE
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            _ClientID = value
+        End Set
+    End Property
+
+    Public Property ParentID() As Int32
+        Get
+            Return _ParentID
+        End Get
+        Set(ByVal value As Int32)
+            _ParentID = value
+        End Set
+    End Property
+
+    Public Property StartDate() As Date
+        Get
+            Return _StartDate
+        End Get
+        Set(ByVal value As Date)
+            _StartDate = value
+        End Set
+    End Property
+
+    Public Property EndDate() As Date
+        Get
+            Return _EndDate
+        End Get
+        Set(ByVal value As Date)
+            _EndDate = value
+        End Set
+    End Property
+
+    Public Property ChangeID() As Int32
+        Get
+            Return _ChangeID
+        End Get
+        Set(ByVal value As Int32)
+            _ChangeID = value
+        End Set
+    End Property
+
+    Public Property Status() As Int32
+        Get
+            Return _Status
+        End Get
+        Set(ByVal value As Int32)
+            _Status = value
+        End Set
+    End Property
+
+    Public Property GUID() As String
+        Get
+            Return _GUID
+        End Get
+        Set(ByVal value As String)
+            _GUID =REDACTED
+        End Set
+    End Property
+
+End Class

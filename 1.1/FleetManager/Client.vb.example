@@ -1,0 +1,416 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.1.0.1    07 Jun 11    DR          Enhancement   Based on .NET 3.5 version 1.0.15.25
+'
+#End Region
+
+Public Class Client
+
+#Region " Private variables "
+
+    Private _AccountCode As String = ""
+    Private _BillingContact As String = ""
+    Private _ChangeID As Int32 = -1
+    Private _ClientAdministratorID As Int32 = -1
+    Private _ClientManager As String = ""
+    Private _Comments As String = ""
+    Private _CostCentre As String = ""
+    Private _Custom1 As String = ""
+    Private _Custom2 As String = ""
+    Private _Custom3 As String = ""
+    Private _Custom4 As String = ""
+    Private _Custom5 As String = ""
+    Private _Custom6 As String = ""
+    Private _Custom7 As String = ""
+    Private _Custom8 As String = ""
+    Private _Custom9 As String = ""
+    Private _Custom10 As String = ""
+    Private _Custom11 As String = ""
+    Private _Custom12 As String = ""
+    Private _Custom13 As String = ""
+    Private _Custom14 As String = ""
+    Private _Custom15 As String = ""
+    Private _Custom16 As String = ""
+    Private _Custom17 As String = ""
+    Private _Custom18 As String = ""
+    Private _Custom19 As String = ""
+    Private _Custom20 As String = ""
+    Private _EmailAddress As String = ""
+    'Private _EndDate As Date = Date.MinValue
+    Private _Fax As String = ""
+    Private _ID As Int32 = -1
+    Private _Name As String = ""
+    Private _Phone As String = ""
+    Private _StartDate As Date = Date.MinValue
+    Private _UID As Int32 = -1
+    Private _IsDirty As Boolean = False
+    Private _HasLoaded As Boolean = False
+
+#End Region
+
+#Region " Properties "
+
+    Public Property Name() As String
+        Get
+            Return _Name
+        End Get
+        Set(ByVal value As String)
+            _Name = value
+        End Set
+    End Property
+
+    Public Property StartDate() As Date
+        Get
+            Return _StartDate
+        End Get
+        Set(ByVal value As Date)
+            _StartDate = value
+        End Set
+    End Property
+
+    'Public Property EndDate() As Date
+    '    Get
+    '        Return _EndDate
+    '    End Get
+    '    Set(ByVal value As Date)
+    '        _EndDate = value
+    '    End Set
+    'End Property
+
+    Public Property ChangeID() As Int32
+        Get
+            Return _ChangeID
+        End Get
+        Set(ByVal value As Int32)
+            _ChangeID = value
+        End Set
+    End Property
+
+    Public Property AccountCode() As String
+        Get
+            Return _AccountCode
+        End Get
+        Set(ByVal value As String)
+            _AccountCode = value
+        End Set
+    End Property
+
+    Public Property CostCentre() As String
+        Get
+            Return _CostCentre
+        End Get
+        Set(ByVal value As String)
+            _CostCentre = value
+        End Set
+    End Property
+
+    Public Property BillingContact() As String
+        Get
+            Return _BillingContact
+        End Get
+        Set(ByVal value As String)
+            _BillingContact = value
+        End Set
+    End Property
+
+    Public Property Phone() As String
+        Get
+            Return _Phone
+        End Get
+        Set(ByVal value As String)
+            _Phone = value
+        End Set
+    End Property
+
+    Public Property Fax() As String
+        Get
+            Return _Fax
+        End Get
+        Set(ByVal value As String)
+            _Fax = value
+        End Set
+    End Property
+
+    Public Property EmailAddress() As String
+        Get
+            Return _EmailAddress
+        End Get
+        Set(ByVal value As String)
+            _EmailAddress = value
+        End Set
+    End Property
+
+    Public Property ClientAdministratorID() As Int32
+        Get
+            Return _ClientAdministratorID
+        End Get
+        Set(ByVal value As Int32)
+            _ClientAdministratorID = value
+        End Set
+    End Property
+
+    Public Property ClientManager() As String
+        Get
+            Return _ClientManager
+        End Get
+        Set(ByVal value As String)
+            _ClientManager = value
+        End Set
+    End Property
+
+    Public Property Comments() As String
+        Get
+            Return _Comments
+        End Get
+        Set(ByVal value As String)
+            _Comments = value
+        End Set
+    End Property
+
+    Public Property Custom1() As String
+        Get
+            Return _Custom1
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom1))
+            _Custom1 = value
+        End Set
+    End Property
+
+    Public Property Custom2() As String
+        Get
+            Return _Custom2
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom2))
+            _Custom2 = value
+        End Set
+    End Property
+
+    Public Property Custom3() As String
+        Get
+            Return _Custom3
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom3))
+            _Custom3 = value
+        End Set
+    End Property
+
+    Public Property Custom4() As String
+        Get
+            Return _Custom4
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom4))
+            _Custom4 = value
+        End Set
+    End Property
+
+    Public Property Custom5() As String
+        Get
+            Return _Custom5
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom5))
+            _Custom5 = value
+        End Set
+    End Property
+
+    Public Property Custom6() As String
+        Get
+            Return _Custom6
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom6))
+            _Custom6 = value
+        End Set
+    End Property
+
+    Public Property Custom7() As String
+        Get
+            Return _Custom7
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom7))
+            _Custom7 = value
+        End Set
+    End Property
+
+    Public Property Custom8() As String
+        Get
+            Return _Custom8
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom8))
+            _Custom8 = value
+        End Set
+    End Property
+
+    Public Property Custom9() As String
+        Get
+            Return _Custom9
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom9))
+            _Custom9 = value
+        End Set
+    End Property
+
+    Public Property Custom10() As String
+        Get
+            Return _Custom10
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom10))
+            _Custom10 = value
+        End Set
+    End Property
+
+    Public Property Custom11() As String
+        Get
+            Return _Custom11
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom11))
+            _Custom11 = value
+        End Set
+    End Property
+
+    Public Property Custom12() As String
+        Get
+            Return _Custom12
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom12))
+            _Custom12 = value
+        End Set
+    End Property
+
+    Public Property Custom13() As String
+        Get
+            Return _Custom13
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom13))
+            _Custom13 = value
+        End Set
+    End Property
+
+    Public Property Custom14() As String
+        Get
+            Return _Custom14
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom14))
+            _Custom14 = value
+        End Set
+    End Property
+
+    Public Property Custom15() As String
+        Get
+            Return _Custom15
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom15))
+            _Custom15 = value
+        End Set
+    End Property
+
+    Public Property Custom16() As String
+        Get
+            Return _Custom16
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom16))
+            _Custom16 = value
+        End Set
+    End Property
+
+    Public Property Custom17() As String
+        Get
+            Return _Custom17
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom17))
+            _Custom17 = value
+        End Set
+    End Property
+
+    Public Property Custom18() As String
+        Get
+            Return _Custom18
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom18))
+            _Custom18 = value
+        End Set
+    End Property
+
+    Public Property Custom19() As String
+        Get
+            Return _Custom19
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom19))
+            _Custom19 = value
+        End Set
+    End Property
+
+    Public Property Custom20() As String
+        Get
+            Return _Custom20
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom20))
+            _Custom20 = value
+        End Set
+    End Property
+
+    Public Property UID() As Int32
+        Get
+            Return _UID
+        End Get
+        Set(ByVal value As Int32)
+            _UID =REDACTED
+        End Set
+    End Property
+
+    Public Property ID() As Int32
+        Get
+            Return _ID
+        End Get
+        Set(ByVal value As Int32)
+            _ID = value
+        End Set
+    End Property
+
+    Public Property IsDirty() As Boolean
+        Get
+            Return _IsDirty
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public ReadOnly Property HasLoaded() As Boolean
+        Get
+            Return _HasLoaded
+        End Get
+    End Property
+
+#End Region
+
+End Class

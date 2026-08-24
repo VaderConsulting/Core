@@ -1,0 +1,198 @@
+﻿Public Class ServiceCharge
+
+#Region " Variable Declaration "
+
+    Private _ClientID As Integer = 0
+    Private _BillID As Integer = 0
+    Private _ServiceID As Integer = 0
+    Private _ServiceNumber As String = ""
+    Private _UserID As Integer = 0
+    Private _ServiceType As String = ""
+    Private _TotalExcharge As Double = 0
+    Private _TotalGST As Double = 0
+    Private _TotalINCCharge As Double = 0
+    Private _BillDate As DateTime
+    Private _BillingCodeID As Integer = 0
+    Private _ProviderID As Integer = 0
+    Private _OfferingID As Integer = 0
+    Private _GraphGroupID As Integer = 0
+    Private _ChargeDate As DateTime
+    Private _ChargeType As String = ""
+    Private _ServiceDescription As String = ""
+    Private _OrgUnitID As Integer = 0
+
+#End Region
+
+#Region " Properties "
+
+    Public Property BillID() As Integer
+        Get
+            Return _BillID
+        End Get
+        Set(ByVal value As Integer)
+            _BillID = value
+        End Set
+    End Property
+
+    Public Property ClientID() As Integer
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Integer)
+            _ClientID = value
+        End Set
+    End Property
+
+    Public Property ServiceID() As Integer
+        Get
+            Return _ServiceID
+        End Get
+        Set(ByVal value As Integer)
+            _ServiceID = value
+        End Set
+    End Property
+
+    Public Property ServiceNumber() As String
+        Get
+            Return _ServiceNumber
+        End Get
+        Set(ByVal value As String)
+            _ServiceNumber = value
+        End Set
+    End Property
+
+    Public Property UserID() As Integer
+        Get
+            Return _UserID
+        End Get
+        Set(ByVal value As Integer)
+            _UserID =REDACTED
+        End Set
+    End Property
+
+    Public Property TotalExCharge() As Double
+        Get
+            Return _TotalExcharge
+        End Get
+        Set(ByVal value As Double)
+            _TotalExcharge = value
+        End Set
+    End Property
+
+    Public Property TotalGST() As Double
+        Get
+            Return _TotalGST
+        End Get
+        Set(ByVal value As Double)
+            _TotalGST = value
+        End Set
+    End Property
+
+    Public Property TotalINCCharge() As Double
+        Get
+            Return _TotalINCCharge
+        End Get
+        Set(ByVal value As Double)
+            _TotalINCCharge = value
+        End Set
+    End Property
+
+    Public Property Billdate() As DateTime
+        Get
+            Return _BillDate
+        End Get
+        Set(ByVal value As DateTime)
+            _BillDate = value
+        End Set
+    End Property
+
+    Public Property BillingCodeId() As Integer
+        Get
+            Return _BillingCodeID
+        End Get
+        Set(ByVal value As Integer)
+            _BillingCodeID = value
+        End Set
+    End Property
+
+    Public Property ProviderID() As Integer
+        Get
+            Return _ProviderID
+        End Get
+        Set(ByVal value As Integer)
+            _ProviderID = value
+        End Set
+    End Property
+
+    Public Property OfferingID() As Integer
+        Get
+            Return _OfferingID
+        End Get
+        Set(ByVal value As Integer)
+            _OfferingID = value
+        End Set
+    End Property
+
+    Public Property GraphGroupID() As Integer
+        Get
+            Return _GraphGroupID
+        End Get
+        Set(ByVal value As Integer)
+            _GraphGroupID = value
+        End Set
+    End Property
+
+    Public Property ChargeDate() As DateTime
+        Get
+            Return _ChargeDate
+        End Get
+        Set(ByVal value As DateTime)
+            _ChargeDate = value
+        End Set
+    End Property
+
+    Public Property ChargeType() As String
+        Get
+            Return _ChargeType
+        End Get
+        Set(ByVal value As String)
+            _ChargeType = value
+        End Set
+    End Property
+
+    Public Property ServiceType() As String
+        Get
+            Return _ServiceType
+        End Get
+        Set(ByVal value As String)
+            _ServiceType = value
+        End Set
+    End Property
+
+    Public Property ServiceDescription() As String
+        Get
+            Return _ServiceDescription
+        End Get
+        Set(ByVal value As String)
+            _ServiceDescription = value
+        End Set
+    End Property
+
+    Public Property OrgUnitID() As Integer
+        Get
+            Return _OrgUnitID
+        End Get
+        Set(ByVal value As Integer)
+            _OrgUnitID = value
+        End Set
+    End Property
+
+#End Region
+
+    Public Sub New(ByVal BillId As Integer, ByVal ClientID As Integer, ByVal UserId As Integer)
+        _BillID = BillId
+        _ClientID = ClientID
+        _UserID =REDACTED
+    End Sub
+
+End Class

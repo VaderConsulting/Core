@@ -1,0 +1,485 @@
+' DTO's only
+
+Public Class LoginDTO
+
+#Region " Private variables "
+
+    Private _ChangeID As Int32 = 0
+    Private _ClientID As Int32 = 0
+    Private _EmailAddress As String = ""
+    Private _EndDate As Date = Nothing
+    Private _FacsimileNumber As String = ""
+    Private _FirstLogin As Boolean = True
+    Private _GUID As String = ""
+    Private _HideAllocated As Boolean = False
+    Private _Home As String = ""
+    Private _LastLogin As Date = Nothing
+    Private _LoginID As Int32 = 0
+    Private _LoginName As String = ""
+    Private _MarkupDisplay As String = ""
+    Private _MarkupSecurity As String = ""
+    Private _MobileNumber As String = ""
+    Private _OrgUnitID As Int32 = 0
+    Private _Password As String = ""
+    Private _PasswordExpiryDate As Date = Nothing
+    Private _PhoneNumber As String = ""
+    Private _RPP As Int32 = 0
+    Private _SiteID As Int32 = 0
+    Private _StartDate As Date = Now
+    Private _Status As Int32 = 0
+    Private _UID As Int32 = 0
+    Private _UserActive As Boolean = False
+    Private _UserID As Int32 = 0
+    Private _UserRoleID As Int32 = 0
+
+    Private _Custom1 As String = ""
+    Private _Custom2 As String = ""
+    Private _Custom3 As String = ""
+    Private _Custom4 As String = ""
+    Private _Custom5 As String = ""
+    Private _Custom6 As String = ""
+    Private _Custom7 As String = ""
+    Private _Custom8 As String = ""
+    Private _Custom9 As String = ""
+    Private _Custom10 As String = ""
+    Private _Custom11 As String = ""
+    Private _Custom12 As String = ""
+    Private _Custom13 As String = ""
+    Private _Custom14 As String = ""
+    Private _Custom15 As String = ""
+    Private _Custom16 As String = ""
+    Private _Custom17 As String = ""
+    Private _Custom18 As String = ""
+    Private _Custom19 As String = ""
+    Private _Custom20 As String = ""
+
+#End Region
+
+#Region " Properties "
+
+    Public Property UID() As Int32
+        Get
+            Return _UID
+        End Get
+        Set(ByVal value As Int32)
+            _UID =REDACTED
+        End Set
+    End Property
+
+    Public Property LoginID() As Int32
+        Get
+            Return _LoginID
+        End Get
+        Set(ByVal value As Int32)
+            _LoginID = value
+        End Set
+    End Property
+
+    Public Property StartDate() As Date
+        Get
+            Return _StartDate
+        End Get
+        Set(ByVal value As Date)
+            _StartDate = value
+        End Set
+    End Property
+
+    Public Property EndDate() As Date
+        Get
+            Return _EndDate
+        End Get
+        Set(ByVal value As Date)
+            _EndDate = value
+        End Set
+    End Property
+
+    Public Property SiteID() As Int32
+        Get
+            Return _SiteID
+        End Get
+        Set(ByVal value As Int32)
+            _SiteID = value
+        End Set
+    End Property
+
+    Public Property LoginName() As String
+        Get
+            Return _LoginName
+        End Get
+        Set(ByVal value As String)
+            _LoginName = value
+        End Set
+    End Property
+
+    Public Property Password() As String
+        Get
+            Return _Password
+        End Get
+        Set(ByVal value As String)
+            _Password =REDACTED
+        End Set
+    End Property
+
+    Public Property PasswordExpiryDate() As Date
+        Get
+            Return _PasswordExpiryDate
+        End Get
+        Set(ByVal value As Date)
+            _PasswordExpiryDate = value
+        End Set
+    End Property
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            _ClientID = value
+        End Set
+    End Property
+
+    Public Property UserID() As Int32
+        Get
+            Return _UserID
+        End Get
+        Set(ByVal value As Int32)
+            _UserID =REDACTED
+        End Set
+    End Property
+
+    Public Property ChangeID() As Int32
+        Get
+            Return _ChangeID
+        End Get
+        Set(ByVal value As Int32)
+            _ChangeID = value
+        End Set
+    End Property
+
+    Public Property Home() As String
+        Get
+            Return _Home
+        End Get
+        Set(ByVal value As String)
+            _Home = value
+        End Set
+    End Property
+
+    Public Property UserRoleID() As Int32
+        Get
+            Return _UserRoleID
+        End Get
+        Set(ByVal value As Int32)
+            _UserRoleID = value
+        End Set
+    End Property
+
+    Public Property FirstLogin() As Boolean
+        Get
+            Return _FirstLogin
+        End Get
+        Set(ByVal value As Boolean)
+            _FirstLogin = value
+        End Set
+    End Property
+
+    Public Property LastLogin() As Date
+        Get
+            Return _LastLogin
+        End Get
+        Set(ByVal value As Date)
+            _LastLogin = value
+        End Set
+    End Property
+
+    Public Property OrgUnitID() As Int32
+        Get
+            Return _OrgUnitID
+        End Get
+        Set(ByVal value As Int32)
+            _OrgUnitID = value
+        End Set
+    End Property
+
+    Public Property UserActive() As Boolean
+        Get
+            Return _UserActive
+        End Get
+        Set(ByVal value As Boolean)
+            _UserActive = value
+        End Set
+    End Property
+
+    Public Property Status() As Int32
+        Get
+            Return _Status
+        End Get
+        Set(ByVal value As Int32)
+            _Status = value
+        End Set
+    End Property
+
+    Public Property PhoneNumber() As String
+        Get
+            Return _PhoneNumber
+        End Get
+        Set(ByVal value As String)
+            _PhoneNumber = value
+        End Set
+    End Property
+
+    Public Property MobileNumber() As String
+        Get
+            Return _MobileNumber
+        End Get
+        Set(ByVal value As String)
+            _MobileNumber = value
+        End Set
+    End Property
+
+    Public Property FacsimileNumber() As String
+        Get
+            Return _FacsimileNumber
+        End Get
+        Set(ByVal value As String)
+            _FacsimileNumber = value
+        End Set
+    End Property
+
+    Public Property EmailAddress() As String
+        Get
+            Return _EmailAddress
+        End Get
+        Set(ByVal value As String)
+            _EmailAddress = value
+        End Set
+    End Property
+
+    Public Property HideAllocated() As Boolean
+        Get
+            Return _HideAllocated
+        End Get
+        Set(ByVal value As Boolean)
+            _HideAllocated = value
+        End Set
+    End Property
+
+    Public Property RPP() As Int32
+        Get
+            Return _RPP
+        End Get
+        Set(ByVal value As Int32)
+            _RPP = value
+        End Set
+    End Property
+
+    Public Property MarkupSecurity() As String
+        Get
+            Return _MarkupSecurity
+        End Get
+        Set(ByVal value As String)
+            _MarkupSecurity = value
+        End Set
+    End Property
+
+    Public Property MarkupDisplay() As String
+        Get
+            Return _MarkupDisplay
+        End Get
+        Set(ByVal value As String)
+            _MarkupDisplay = value
+        End Set
+    End Property
+
+    Public Property GUID() As String
+        Get
+            Return _GUID
+        End Get
+        Set(ByVal value As String)
+            _GUID =REDACTED
+        End Set
+    End Property
+
+    Public Property Custom1() As String
+        Get
+            Return _Custom1
+        End Get
+        Set(ByVal value As String)
+            _Custom1 = value
+        End Set
+    End Property
+
+    Public Property Custom2() As String
+        Get
+            Return _Custom2
+        End Get
+        Set(ByVal value As String)
+            _Custom2 = value
+        End Set
+    End Property
+
+    Public Property Custom3() As String
+        Get
+            Return _Custom3
+        End Get
+        Set(ByVal value As String)
+            _Custom3 = value
+        End Set
+    End Property
+
+    Public Property Custom4() As String
+        Get
+            Return _Custom4
+        End Get
+        Set(ByVal value As String)
+            _Custom4 = value
+        End Set
+    End Property
+
+    Public Property Custom5() As String
+        Get
+            Return _Custom5
+        End Get
+        Set(ByVal value As String)
+            _Custom5 = value
+        End Set
+    End Property
+
+    Public Property Custom6() As String
+        Get
+            Return _Custom6
+        End Get
+        Set(ByVal value As String)
+            _Custom6 = value
+        End Set
+    End Property
+
+    Public Property Custom7() As String
+        Get
+            Return _Custom7
+        End Get
+        Set(ByVal value As String)
+            _Custom7 = value
+        End Set
+    End Property
+
+    Public Property Custom8() As String
+        Get
+            Return _Custom8
+        End Get
+        Set(ByVal value As String)
+            _Custom8 = value
+        End Set
+    End Property
+
+    Public Property Custom9() As String
+        Get
+            Return _Custom9
+        End Get
+        Set(ByVal value As String)
+            _Custom9 = value
+        End Set
+    End Property
+
+    Public Property Custom10() As String
+        Get
+            Return _Custom10
+        End Get
+        Set(ByVal value As String)
+            _Custom10 = value
+        End Set
+    End Property
+
+    Public Property Custom11() As String
+        Get
+            Return _Custom11
+        End Get
+        Set(ByVal value As String)
+            _Custom11 = value
+        End Set
+    End Property
+
+    Public Property Custom12() As String
+        Get
+            Return _Custom12
+        End Get
+        Set(ByVal value As String)
+            _Custom12 = value
+        End Set
+    End Property
+
+    Public Property Custom13() As String
+        Get
+            Return _Custom13
+        End Get
+        Set(ByVal value As String)
+            _Custom13 = value
+        End Set
+    End Property
+
+    Public Property Custom14() As String
+        Get
+            Return _Custom14
+        End Get
+        Set(ByVal value As String)
+            _Custom14 = value
+        End Set
+    End Property
+
+    Public Property Custom15() As String
+        Get
+            Return _Custom15
+        End Get
+        Set(ByVal value As String)
+            _Custom15 = value
+        End Set
+    End Property
+
+    Public Property Custom16() As String
+        Get
+            Return _Custom16
+        End Get
+        Set(ByVal value As String)
+            _Custom16 = value
+        End Set
+    End Property
+
+    Public Property Custom17() As String
+        Get
+            Return _Custom17
+        End Get
+        Set(ByVal value As String)
+            _Custom17 = value
+        End Set
+    End Property
+
+    Public Property Custom18() As String
+        Get
+            Return _Custom18
+        End Get
+        Set(ByVal value As String)
+            _Custom18 = value
+        End Set
+    End Property
+
+    Public Property Custom19() As String
+        Get
+            Return _Custom19
+        End Get
+        Set(ByVal value As String)
+            _Custom19 = value
+        End Set
+    End Property
+
+    Public Property Custom20() As String
+        Get
+            Return _Custom20
+        End Get
+        Set(ByVal value As String)
+            _Custom20 = value
+        End Set
+    End Property
+
+#End Region
+
+End Class

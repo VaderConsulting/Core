@@ -1,0 +1,923 @@
+﻿Imports System.Data.SqlClient
+Imports System.Reflection.Assembly
+Imports System.Text
+Imports System.Windows.Forms
+
+Public Class Functions
+
+    Public Enum ValueType
+        [Integer] = 0
+        [String] = 1
+        [Boolean] = 2
+        [Float] = 3
+        [Decimal] = 4
+    End Enum
+
+    Public Shared Function ConvertToSQLType(ByVal InputValue As Object, ByVal SQLValueType As String) As Object
+        Dim ConvertedValue As Object = Nothing
+
+        Select Case SQLValueType.ToLower & ""
+            Case "boolean"
+                Select Case InputValue.ToLower
+                    Case "y", "1", "-1", "yes", "true", "checked", "selected", "on"
+                        ConvertedValue = True
+                    Case Else
+                        ConvertedValue = False
+                End Select
+            Case "integer", "decimal"
+                Select Case InputValue.ToLower
+                    Case "y", "1", "-1", "yes", "true", "checked", "selected", "on"
+                        ConvertedValue = 1
+                    Case "n", "0", "no", "unchecked", "unselected", "false", "off"
+                        ConvertedValue = 0
+                    Case Else
+                        If IsNumeric(InputValue) Then
+                            ConvertedValue = CInt(InputValue)
+                        Else
+                            ConvertedValue = 0
+                        End If
+                End Select
+            Case "short"
+                If IsNumeric(InputValue) Then
+                    ConvertedValue = CShort(InputValue)
+                Else
+                    ConvertedValue = 0
+                End If
+            Case "long"
+                If IsNumeric(InputValue) Then
+                    ConvertedValue = CLng(InputValue)
+                Else
+                    ConvertedValue = 0
+                End If
+            Case "date"
+                If IsDate(InputValue) Then
+                    ConvertedValue = CDate(InputValue)
+                Else
+                    ConvertedValue = "01/01/0001"
+                End If
+            Case "double"
+                If IsNumeric(InputValue) Then
+                    ConvertedValue = CDbl(InputValue)
+                Else
+                    ConvertedValue = 0
+                End If
+            Case "string", ""
+                ConvertedValue = CStr(InputValue)
+            Case Else ' String and unknown types
+                ConvertedValue = CStr(InputValue)
+        End Select
+
+        Return ConvertedValue
+    End Function
+
+    ' ''' <summary>
+    ' ''' Returns a List of Databases
+    ' ''' </summary>
+    ' ''' <param name="DatabaseServer"></param>
+    ' ''' <param name="Username"></param>
+    ' ''' <param name="Password"></param>
+    ' ''' <returns></returns>
+    ' ''' <remarks></remarks>
+    'Public Shared Function GetDatabases(ByVal DatabaseServer As String, ByVal Username As String, ByVal Password As String) As Collections.Specialized.OrderedDictionary
+    '    Dim DatabaseList As New Collections.Specialized.OrderedDictionary
+    '    Dim SelectQuery As String = ""
+    '    Dim ConnectionString As String = ""
+    '    Dim DataReader As SqlDataReader
+
+    '    SelectQuery = "SELECT DISTINCT DatabaseName, ConnectionString"
+    '    SelectQuery &= " FROM         DatabaseDetails"
+    '    SelectQuery &= " WHERE     (EndDate IS NULL)"
+
+    '    ConnectionString = "REDACTED" & DatabaseServer & ";Database=StratatelControl_Test; User ID="REDACTED";Password="REDACTED";Max Pool Size=5000;"
+
+    '    ' ADO.NET Objects
+    '    Dim DataConnection As New SqlConnection(ConnectionString)
+    '    Dim DataCommand As New SqlCommand(SelectQuery, DataConnection)
+
+    '    ' Open Connection and retrieve databases
+    '    Try
+    '        DataCommand.Connection = DataConnection
+    '        Using DataConnection
+    '            ' Execute query
+    '            DataConnection.Open()
+    '            DataReader = DataCommand.ExecuteReader()
+
+    '            While DataReader.Read
+    '                DatabaseList.Add(DataReader("DatabaseName").ToString, DataReader("ConnectionString").ToString)
+    '            End While
+    '        End Using
+
+    '        ' Close Reader
+    '        DataReader.Close()
+    '    Catch ex As SqlException
+    '        'LogInfo.WriteError("Error: Error Connecting to Database (Unable to get Databases)")
+    '    Catch ex As Exception
+    '        ' _AppLogging.WriteError("Error: Error Connecting to Database (Unable to get Databases)")
+    '    Finally
+    '        ' Close Connection
+    '        DataConnection.Close()
+    '    End Try
+
+    '    Return DatabaseList
+    'End Function
+
+    ' ''' <summary>
+    ' ''' Returns a List of Clients
+    ' ''' </summary>
+    ' ''' <param name="ConnectionString"></param>
+    ' ''' <returns></returns>
+    ' ''' <remarks></remarks>
+    'Public Shared Function GetClients(ByVal ConnectionString As String) As Collections.Specialized.OrderedDictionary
+    '    Dim ClientList As New Collections.Specialized.OrderedDictionary
+    '    Dim DataReader As SqlDataReader = Nothing
+    '    Dim SelectQuery As String
+
+    '    SelectQuery = "SELECT     ClientID, ClientName"
+    '    SelectQuery &= " FROM         Client"
+    '    SelectQuery &= " WHERE     (EndDate IS NULL)"
+
+    '    ' ADO.NET Objects
+    '    Dim DataConnection As New SqlConnection(ConnectionString)
+    '    Dim DataCommand As New SqlCommand(SelectQuery, DataConnection)
+
+    '    ' Open Connection and retrieve databases
+    '    Try
+    '        DataCommand.Connection = DataConnection
+    '        Using DataConnection
+    '            ' Execute query
+    '            DataConnection.Open()
+    '            DataReader = DataCommand.ExecuteReader()
+
+    '            While DataReader.Read
+    '                ClientList.Add(DataReader("ClientName").ToString, DataReader("ClientID").ToString)
+    '            End While
+    '        End Using
+
+    '        ' Close Reader
+    '        DataReader.Close()
+    '    Catch ex As SqlException
+    '        'LogInfo.WriteError("Error: Error Connecting to Database (Unable to get Clients)")
+    '    Catch ex As Exception
+    '        '_AppLogging.WriteError("Error: Error Connecting to Database (Unable to get Clients)")
+    '    Finally
+    '        ' Close Connection
+    '        DataConnection.Close()
+    '    End Try
+
+    '    Return ClientList
+    'End Function
+
+    ' ''' <summary>
+    ' ''' Returns a List of Service Providers
+    ' ''' </summary>
+    ' ''' <param name="ConnectionString"></param>
+    ' ''' <returns></returns>
+    ' ''' <remarks></remarks>
+    'Public Shared Function GetServiceProviders(ByVal ConnectionString As String) As Collections.Specialized.OrderedDictionary
+    '    Dim ProviderList As New Collections.Specialized.OrderedDictionary
+    '    Dim SelectQuery As String = ""
+    '    Dim DataReader As SqlDataReader = Nothing
+
+    '    SelectQuery = "SELECT     UID, ProviderName, ServiceType"
+    '    SelectQuery &= " FROM         ServiceProvider"
+
+    '    ' ADO.NET Objects
+    '    Dim DataConnection As New SqlConnection(ConnectionString)
+    '    Dim DataCommand As New SqlCommand(SelectQuery, DataConnection)
+
+    '    ' Open Connection and retrieve databases
+    '    Try
+    '        DataCommand.Connection = DataConnection
+    '        Using DataConnection
+    '            ' Execute query
+    '            DataConnection.Open()
+    '            DataReader = DataCommand.ExecuteReader()
+
+    '            While DataReader.Read
+    '                Dim ListBoxItem As New GenericListBoxItem
+
+    '                ListBoxItem.ItemName = DataReader("ProviderName").ToString
+    '                ListBoxItem.ItemID = DataReader("UID").ToString
+    '                ListBoxItem.Item1 = DataReader("ServiceType").ToString
+
+    '                ProviderList.Add(ProviderList.Count + 1, ListBoxItem)
+    '            End While
+    '        End Using
+
+    '        ' Close Reader
+    '        DataReader.Close()
+    '    Catch ex As SqlException
+    '        '_AppLogging.WriteError("Error: Error Connecting to Database (Unable to get ServiceProvider)")
+    '    Catch ex As Exception
+    '        ' _AppLogging.WriteError("Error: Error Connecting to Database (Unable to get ServiceProvider)")
+    '    Finally
+    '        ' Close Connection
+    '        DataConnection.Close()
+    '    End Try
+
+    '    Return ProviderList
+    'End Function
+
+    ' ''' <summary>
+    ' ''' Gets the Site ID based on the database name selected
+    ' ''' </summary>
+    ' ''' <param name="ConnectionStr"></param>
+    ' ''' <param name="DatabaseName"></param>
+    ' ''' <returns></returns>
+    ' ''' <remarks></remarks>
+    'Public Shared Function GetSiteID(ByVal ConnectionStr As String, ByVal DatabaseName As String) As Integer
+    '    Dim SiteID As Integer = -1
+
+    '    ' Select Statement
+    '    Dim SelectQuery As String
+    '    SelectQuery = "SELECT     DatabaseDetails.UID, DatabaseDetails.DatabaseName, DatabaseDetails.StartDate, DatabaseDetails.EndDate, DatabaseDetails.ConnectionString, SiteDetails.SiteID"
+    '    SelectQuery &= " FROM         DatabaseDetails INNER JOIN"
+    '    SelectQuery &= "   SiteDetails ON DatabaseDetails.UID =REDACTED"
+    '    SelectQuery &= " WHERE     (DatabaseDetails.DatabaseName = '" & DatabaseName & "')"
+
+    '    ' ADO.NET Objects
+    '    Dim DataConnection As New SqlConnection(ConnectionStr)
+    '    Dim DataCommand As New SqlCommand(SelectQuery, DataConnection)
+    '    Dim DataReader As SqlDataReader
+
+    '    ' Open Connection and retrieve databases
+    '    Try
+    '        DataCommand.Connection = DataConnection
+    '        Using DataConnection
+    '            ' Execute query
+    '            DataConnection.Open()
+    '            DataReader = DataCommand.ExecuteReader()
+
+    '            While DataReader.Read
+
+    '                SiteID = CInt(DataReader("SiteID"))
+
+    '            End While
+
+    '        End Using
+
+    '        ' Close Reader
+    '        DataReader.Close()
+
+    '    Catch ex As SqlException
+    '        '_AppLogging.WriteError("Error: Error Connecting to Database (Unable to get SiteID)")
+    '    Catch ex As Exception
+    '        ' _AppLogging.WriteError("Error: Error Connecting to Database (Unable to get SiteID)")
+    '    Finally
+    '        ' Close Connection
+    '        DataConnection.Close()
+    '    End Try
+
+    '    Return SiteID
+
+    'End Function
+
+    ''' <summary>
+    ''' Execute a query, returning a dataset
+    ''' </summary>
+    ''' <param name="QueryString">The query to execute</param>
+    ''' <param name="ConnectionString">The Connection string to connect with</param>
+    ''' <param name="Timeout">OPTIONAL Timeout.  Only override the default if you have no other option</param>
+    ''' <returns>Dataset</returns>
+    ''' <remarks></remarks>
+    Public Shared Function Execute(ByVal QueryString As String, ByVal ConnectionString As String, Optional ByVal Timeout As Int32 = 30) As DataSet
+        Dim ReturnData As New DataSet("DataSet1")
+        Dim Table As New DataTable("Table1")
+        Dim DataConnection As SqlConnection = Nothing
+        Dim DataReader As SqlDataReader
+        Dim DataCommand As New SqlCommand
+
+        Cursor.Current = Cursors.WaitCursor
+
+        ''Console.WriteLine("Execute: " & QueryString)
+
+        DataConnection = New SqlConnection(ConnectionString)
+
+        If DataConnection.State = ConnectionState.Closed Then
+            Try
+
+                DataConnection.Open()
+            Catch ex As Exception
+                Trace.WriteLine(ex.ToString)
+                Cursor.Current = Cursors.Default
+                Err.Raise(vbObjectError + 526, GetExecutingAssembly.GetName.Name, "The Database could not be opened." & vbCrLf & vbCrLf & "The actual error returned was:" & vbCrLf & ex.ToString)
+            End Try
+        End If
+
+        DataCommand = New SqlCommand(QueryString, DataConnection)
+
+        DataCommand.CommandTimeout = Timeout
+        DataCommand.CommandText = QueryString
+        Try
+            DataReader = DataCommand.ExecuteReader()
+
+            ' Get the data and put it into a table
+            If DataReader.HasRows Then
+                Table.Load(DataReader)
+            End If
+
+            ReturnData.Tables.Add(Table)
+
+            DataCommand.Dispose()
+
+            DataReader.Close()
+            DataConnection.Close()
+
+            If QueryString.ToLower().StartsWith("insert into") Or QueryString.ToLower().StartsWith("update") Or QueryString.ToLower().StartsWith("delete") Then '' We may to write this to the Trace Table
+                If Not QueryString.StartsWith("INSERT INTO Trace") Then '' Double check that we aren't in a recursive loop
+                    WriteTrace(QueryString, ConnectionString)
+                End If
+            End If
+        Catch ex As Exception
+
+        End Try
+        
+        DataCommand = Nothing
+        DataReader = Nothing
+        DataConnection = Nothing
+
+        Cursor.Current = Cursors.Default
+
+        Return ReturnData
+    End Function
+
+    ''' <summary>
+    ''' Execute a query, without returning a dataset
+    ''' </summary>
+    ''' <param name="QueryString">The query to execute</param>
+    ''' <param name="ConnectionString">The Connection string to connect with</param>
+    ''' <param name="Timeout">OPTIONAL Timeout.  Only override the default if you have no other option</param>
+    ''' <remarks></remarks>
+    Public Shared Sub ExecuteNonQuery(ByVal QueryString As String, ByVal ConnectionString As String, Optional ByVal Timeout As Int32 = 30)
+        Dim DataConnection As SqlConnection = Nothing
+        Dim DataCommand As New SqlCommand
+
+        Cursor.Current = Cursors.WaitCursor
+
+        ''Console.WriteLine("Execute: " & QueryString)
+
+        DataConnection = New SqlConnection(ConnectionString)
+
+        If DataConnection.State = ConnectionState.Closed Then DataConnection.Open()
+
+        DataCommand = New SqlCommand(QueryString, DataConnection)
+
+        DataCommand.CommandTimeout = Timeout
+        DataCommand.CommandText = QueryString
+
+        Try
+            DataCommand.ExecuteNonQuery()
+
+            If QueryString.ToLower().StartsWith("insert into") Or QueryString.ToLower().StartsWith("update") Or QueryString.ToLower().StartsWith("delete") Then '' We may to write this to the Trace Table
+                If Not QueryString.StartsWith("INSERT INTO Trace") Then '' Double check that we aren't in a recursive loop
+                    WriteTrace(QueryString, ConnectionString)
+                End If
+            End If
+        Catch
+        End Try
+
+        DataCommand.Dispose()
+        DataConnection.Close()
+
+        DataCommand = Nothing
+        DataConnection = Nothing
+
+        Cursor.Current = Cursors.Default
+
+    End Sub
+
+    ''' <summary>
+    ''' Execute a Store Procedure
+    ''' </summary>
+    ''' <param name="DataCommand"></param>
+    ''' <param name="ConnectionString">The Connection string to connect with</param>
+    ''' <param name="Timeout">OPTIONAL Timeout.  Only override the default if you have no other option</param>
+    ''' <remarks></remarks>
+    Public Shared Sub ExecuteStoredProcedure(ByRef DataCommand As SqlCommand, ByVal ConnectionString As String, Optional ByVal Timeout As Int32 = 30)
+        Dim DataConnection As SqlConnection = Nothing
+
+        Cursor.Current = Cursors.WaitCursor
+
+        DataConnection = New SqlConnection(ConnectionString)
+
+        If DataConnection.State = ConnectionState.Closed Then DataConnection.Open()
+
+        DataCommand.Connection = DataConnection
+        DataCommand.CommandTimeout = Timeout
+
+        DataCommand.ExecuteScalar()
+
+        DataConnection.Close()
+
+        DataConnection = Nothing
+
+        Cursor.Current = Cursors.Default
+
+    End Sub
+
+    Public Shared Function GetDataRowFromDataset(ByVal Recordset As DataSet, TableName As String, RowName As String) As DataRow
+        Dim Row As DataRow = Nothing
+
+        If Recordset.Tables.Count > 0 Then
+            If Recordset.Tables(0).Rows.Count > 0 Then
+                Row = Recordset.Tables(TableName).Rows(RowName)
+            End If
+        End If
+
+        Return Row
+    End Function
+
+    Public Shared Function GetDataRowFromDataset(ByVal Recordset As DataSet, TableName As String, RowNumber As Integer) As DataRow
+        Dim Row As DataRow = Nothing
+
+        If Recordset.Tables.Count >= 0 Then
+            If Recordset.Tables(TableName).Rows.Count >= RowNumber Then
+                Row = Recordset.Tables(TableName).Rows(RowNumber)
+            End If
+        End If
+
+        Return Row
+    End Function
+
+    Public Shared Function GetDataRowFromDataset(ByVal Recordset As DataSet, TableNumber As Integer, RowNumber As Integer) As DataRow
+        Dim Row As DataRow = Nothing
+
+        Try
+            If Recordset.Tables.Count >= TableNumber Then
+                If Recordset.Tables(TableNumber).Rows.Count >= RowNumber Then
+                    If Recordset.Tables(TableNumber).Rows.Count > 0 Then
+                        Row = Recordset.Tables(TableNumber).Rows(RowNumber)
+                    End If
+                End If
+            End If
+        Catch
+        End Try
+
+        Return Row
+    End Function
+
+    Public Shared Function GetFieldFromDataRow(Row As DataRow, FieldNumber As Integer) As Object
+        Dim ReturnValue As Object = Nothing
+
+        If Not Row Is Nothing Then
+            ReturnValue = Row.Item(FieldNumber)
+        End If
+
+        Return ReturnValue
+    End Function
+
+    Public Shared Function GetFieldFromDataRow(Row As DataRow, FieldName As String) As Object
+        Dim ReturnValue As Object = Nothing
+
+        If Not Row Is Nothing Then
+            ReturnValue = Row.Item(FieldName).ToString
+        End If
+
+        Return ReturnValue
+    End Function
+
+    Public Shared Function GetCompressedFieldFromDataRow(Row As DataRow, FieldName As String) As Byte()
+        Dim ReturnValue As Byte() = Nothing
+
+        If Not Row Is Nothing Then
+            ReturnValue = Row.Item(FieldName)
+        End If
+
+        Return ReturnValue
+    End Function
+
+    ''' <summary>
+    ''' Build a query, returning a string
+    ''' </summary>
+    ''' <param name="TableName">The table to use in the SELECT</param>
+    ''' <param name="FieldNames">An array of fields to select</param>
+    ''' <param name="OrderByFieldNames">The fields to order by</param>
+    ''' <param name="OutsideWhereClause">The outside where clause</param>
+    ''' <param name="InsideWhereClause">The inside where clause</param>
+    ''' <param name="Joins">The joins to apply</param>
+    ''' <returns>Dataset</returns>
+    ''' <remarks></remarks>
+    Public Shared Function BuildQuery(ByVal TableName As String, _
+                                      ByVal FieldNames() As String, ByVal OrderByFieldNames() As String, _
+                                      ByVal OutsideWhereClause As String, ByVal InsideWhereClause As String, ByVal Joins As String, ByVal EnablePaging As Boolean) As String
+
+        Dim Builder As New StringBuilder()
+        Dim Counter As Integer = 0
+
+        For Each f As String In FieldNames
+            Counter += 1
+            Builder.Append(f)
+            If Counter < FieldNames.Length Then
+                Builder.Append(", ")
+            Else
+                Builder.Append(" ")
+            End If
+        Next
+
+        If EnablePaging Then
+            Builder.Append(", DENSE_RANK() OVER (ORDER BY ")
+        End If
+
+        Counter = 0
+
+        If EnablePaging Then
+            If (Not IsNothing(OrderByFieldNames)) Then
+
+                For Each o As String In OrderByFieldNames
+                    Counter += 1
+                    Builder.Append(o)
+                    If Counter < OrderByFieldNames.Length Then
+                        Builder.Append(", ")
+                    Else
+                        Builder.Append(" ")
+                    End If
+                Next
+
+            End If
+        End If
+
+        If EnablePaging Then
+            Builder.Append(") As 'RowNumber' ")
+        End If
+        Builder.Append(" FROM " & TableName & " ")
+        Builder.Append(Joins)
+
+        If InsideWhereClause.Length > 0 Or OutsideWhereClause.Length > 0 Then
+            Builder.Append("WHERE ")
+        End If
+
+        If InsideWhereClause.Length > 0 Then
+            Builder.Append("(")
+            Builder.Append(InsideWhereClause)
+            Builder.Append(")")
+        End If
+
+        If InsideWhereClause.Length > 0 And OutsideWhereClause.Length > 0 Then
+            Builder.Append(" AND ")
+        End If
+
+        If OutsideWhereClause.Length > 0 Then
+            Builder.Append("(")
+            Builder.Append(OutsideWhereClause & " ")
+            Builder.Append(")")
+        End If
+
+        If (Not IsNothing(OrderByFieldNames)) Then
+
+            Builder.Append(" ORDER BY ")
+
+            For Each o As String In OrderByFieldNames
+                Counter += 1
+                Builder.Append(o)
+                If Counter < OrderByFieldNames.Length Then
+                    Builder.Append(", ")
+                End If
+            Next
+
+        End If
+
+        Return Builder.ToString()
+
+    End Function
+
+    ''' <summary>
+    ''' Build a query, ready to be used to count records, returning a string
+    ''' </summary>
+    ''' <param name="TableName">The table to use in the SELECT</param>
+    ''' <param name="FieldNames">An array of fields to select</param>
+    ''' <param name="OrderByFieldNames">The fields to order by</param>
+    ''' <param name="OutsideWhereClause">The outside where clause</param>
+    ''' <param name="InsideWhereClause">The inside where clause</param>
+    ''' <param name="Joins">The joins to apply</param>
+    ''' <returns>Dataset</returns>
+    ''' <remarks></remarks>
+    Public Shared Function BuildCountQuery(ByVal TableName As String, _
+                                      ByVal FieldNames() As String, ByVal OrderByFieldNames() As String, _
+                                      ByVal OutsideWhereClause As String, ByVal InsideWhereClause As String, ByVal Joins As String, ByVal EnablePaging As Boolean) As String
+
+        Dim Builder As New StringBuilder("SELECT COUNT (DISTINCT ")
+        Dim Counter As Integer = 0
+
+        Builder.Append(FieldNames(0))
+
+        Builder.Append(")")
+
+        Builder.Append(" FROM " & TableName & " ")
+        Builder.Append(Joins)
+
+        If InsideWhereClause.Length > 0 Or OutsideWhereClause.Length > 0 Then
+            Builder.Append("WHERE ")
+        End If
+
+        If InsideWhereClause.Length > 0 Then
+            Builder.Append("(")
+            Builder.Append(InsideWhereClause)
+            Builder.Append(")")
+        End If
+
+        If InsideWhereClause.Length > 0 And OutsideWhereClause.Length > 0 Then
+            Builder.Append(" AND ")
+        End If
+
+        If OutsideWhereClause.Length > 0 Then
+            Builder.Append("(")
+            Builder.Append(OutsideWhereClause & " ")
+            Builder.Append(")")
+        End If
+
+        Return Builder.ToString()
+
+    End Function
+
+    Public Shared Function PageData(ByVal FinalTableName As String, Query As String, _
+                                    ByVal Start As Integer, ByVal Size As Integer, ByVal ConnectionString As String, Optional Timeout As Integer = 30) As DataSet
+
+        Dim Builder As New StringBuilder("WITH " & FinalTableName & " AS (SELECT DISTINCT TOP (100) PERCENT ")
+
+        Builder.Append(Query)
+        Builder.Append(") ")
+
+        'Console.WriteLine(String.Format("SQL PageData: Start = {0}", Start, Builder.ToString()))
+
+        Builder.Append("SELECT * FROM " & FinalTableName & " WHERE RowNumber BETWEEN " & Start & " AND " & Start + Size & " ORDER BY RowNumber")
+
+        'Console.WriteLine(String.Format("SQL PageData: {0}", Builder.ToString()))
+
+        Return Execute(Builder.ToString(), ConnectionString, Timeout)
+
+    End Function
+
+    Public Shared Function Count(ByVal Query As String, ByVal ConnectionString As String, Optional Timeout As Integer = 30) As Integer
+        Dim Data As DataSet = Execute(Query, ConnectionString, Timeout)
+
+        If Not Data Is Nothing Then
+            Return GetFieldFromDataRow(GetDataRowFromDataset(Data, 0, 0), 0)
+        Else
+            Return 0
+        End If
+    End Function
+
+    Public Shared Function SQLString(InputString As String) As String
+        Dim OutputString As String = InputString
+
+        If InputString <> Nothing Then
+            OutputString = InputString.Replace("'", "''")
+        End If
+
+        Return OutputString
+    End Function
+
+    Public Shared Function SQLBoolean(InputValue As Boolean) As String
+        Dim OutputString As String = "0"
+
+        If InputValue = True Then
+            OutputString = "1"
+        End If
+
+        Return OutputString
+    End Function
+
+    Public Shared Function SQLInteger(InputValue As Integer) As String
+        Dim OutputValue As String = "0"
+
+        If InputValue > 0 Then
+            OutputValue = InputValue.ToString()
+        End If
+
+        Return OutputValue
+    End Function
+
+    Public Shared Function SQLInteger(InputValue As String) As String
+        Dim OutputValue As String = "0"
+
+        If IsNumeric(InputValue) Then
+            If Convert.ToInt32(InputValue) > 0 Then
+                OutputValue = Convert.ToInt32(InputValue).ToString()
+            End If
+        End If
+
+        Return OutputValue
+    End Function
+
+    Public Shared Function SQLFloat(InputValue As Single) As String
+        Dim OutputValue As String = "0.0"
+
+        If InputValue > 0 Then
+            OutputValue = InputValue.ToString()
+        End If
+
+        Return OutputValue
+    End Function
+
+    Public Shared Function SQLFloat(InputValue As String) As String
+        Dim OutputValue As String = "0.0"
+
+        If IsNumeric(InputValue) Then
+            If Convert.ToSingle(InputValue) > 0 Then
+                OutputValue = Convert.ToSingle(InputValue).ToString()
+            End If
+        End If
+
+        Return OutputValue
+    End Function
+
+    Public Shared Function SQLDecimal(InputValue As Decimal) As String
+        Dim OutputValue As String = "0.0"
+
+        If InputValue > 0 Then
+            OutputValue = InputValue.ToString()
+        End If
+
+        Return OutputValue
+    End Function
+
+    Public Shared Function SQLDecimal(InputValue As String) As String
+        Dim OutputValue As String = "0.0"
+
+        If IsNumeric(InputValue) Then
+            If Convert.ToDecimal(InputValue) > 0 Then
+                OutputValue = Convert.ToDecimal(InputValue).ToString()
+            End If
+        End If
+
+        Return OutputValue
+    End Function
+
+    Public Class SQLDataType
+
+        Private _ValueType As Type = Nothing
+
+        Private _OriginalStringValue As String = ""
+        Private _OriginalIntegerValue As Integer = 0
+        Private _OriginalBooleanValue As Boolean = False
+        Private _OriginalFloatValue As Single = 0.0
+        Private _OriginalDecimalValue As Decimal = 0.0
+
+        Private _ModifiedStringValue As String = ""
+        Private _ModifiedIntegerValue As Integer = 0
+        Private _ModifiedBooleanValue As Boolean = False
+        Private _ModifiedFloatValue As Single = 0.0
+        Private _ModifiedDecimalValue As Decimal = 0.0
+
+        Private _Initialised As Boolean = False
+        Private _Modified As Boolean = False
+
+        Public Property DataType As SQL.Functions.SQLDataType
+
+        Public Sub [Set](Value As Object)
+            Dim ValueType As Type = Value.GetType()
+
+            If Not _Initialised Then
+                If ValueType Is GetType(System.String) Then
+                    _OriginalStringValue = Convert.ToString(Value)
+                    _ValueType = ValueType
+                ElseIf ValueType Is GetType(System.Int32) Then
+                    _OriginalIntegerValue = Convert.ToInt32(Value)
+                    _ValueType = ValueType
+                ElseIf ValueType Is GetType(System.Boolean) Then
+                    _OriginalBooleanValue = Convert.ToBoolean(Value)
+                    _ValueType = ValueType
+                ElseIf ValueType Is GetType(System.Single) Then
+                    _OriginalFloatValue = Convert.ToSingle(Value)
+                    _ValueType = ValueType
+                ElseIf ValueType Is GetType(System.Decimal) Then
+                    _OriginalDecimalValue = Convert.ToDecimal(Value)
+                    _ValueType = ValueType
+                Else
+                    Throw New Exception("Data type not recognised")
+                End If
+
+                _Initialised = True
+            Else
+                If _ValueType Is GetType(System.String) Then
+                    _ModifiedStringValue = Convert.ToString(Value)
+                ElseIf _ValueType Is GetType(System.Int32) Then
+                    _ModifiedIntegerValue = Convert.ToInt32(Value)
+                ElseIf _ValueType Is GetType(System.Boolean) Then
+                    _ModifiedBooleanValue = Convert.ToBoolean(Value)
+                ElseIf _ValueType Is GetType(System.Single) Then
+                    _ModifiedFloatValue = Convert.ToSingle(Value)
+                ElseIf _ValueType Is GetType(System.Decimal) Then
+                    _ModifiedDecimalValue = Convert.ToDecimal(Value)
+                Else
+                    Throw New Exception("Data type not recognised")
+                End If
+
+                _Modified = True
+            End If
+        End Sub
+
+        Public Function [Get](Optional OriginalValue As Boolean = False) As Object
+            Dim ReturnValue As Object = Nothing
+
+            If OriginalValue Then
+                If _ValueType Is GetType(System.String) Then
+                    ReturnValue = Convert.ToString(_OriginalStringValue)
+                ElseIf _ValueType Is GetType(System.Int32) Then
+                    ReturnValue = Convert.ToInt32(_OriginalIntegerValue)
+                ElseIf _ValueType Is GetType(System.Boolean) Then
+                    ReturnValue = Convert.ToBoolean(_OriginalBooleanValue)
+                ElseIf _ValueType Is GetType(System.Single) Then
+                    ReturnValue = Convert.ToSingle(_OriginalFloatValue)
+                ElseIf _ValueType Is GetType(System.Decimal) Then
+                    ReturnValue = Convert.ToDecimal(_OriginalDecimalValue)
+                End If
+            Else
+                If Not _Modified Then
+                    If _ValueType Is GetType(System.String) Then
+                        ReturnValue = Convert.ToString(_OriginalStringValue)
+                    ElseIf _ValueType Is GetType(System.Int32) Then
+                        ReturnValue = Convert.ToInt32(_OriginalIntegerValue)
+                    ElseIf _ValueType Is GetType(System.Boolean) Then
+                        ReturnValue = Convert.ToBoolean(_OriginalBooleanValue)
+                    ElseIf _ValueType Is GetType(System.Single) Then
+                        ReturnValue = Convert.ToSingle(_OriginalFloatValue)
+                    ElseIf _ValueType Is GetType(System.Decimal) Then
+                        ReturnValue = Convert.ToDecimal(_OriginalDecimalValue)
+                    End If
+                Else
+                    If _ValueType Is GetType(System.String) Then
+                        ReturnValue = Convert.ToString(_ModifiedStringValue)
+                    ElseIf _ValueType Is GetType(System.Int32) Then
+                        ReturnValue = Convert.ToInt32(_ModifiedIntegerValue)
+                    ElseIf _ValueType Is GetType(System.Boolean) Then
+                        ReturnValue = Convert.ToBoolean(_ModifiedBooleanValue)
+                    ElseIf _ValueType Is GetType(System.Single) Then
+                        ReturnValue = Convert.ToSingle(_ModifiedFloatValue)
+                    ElseIf _ValueType Is GetType(System.Decimal) Then
+                        ReturnValue = Convert.ToDecimal(_ModifiedDecimalValue)
+                    End If
+                End If
+            End If
+
+            Return ReturnValue
+
+        End Function
+
+        Public Function Type() As Type
+            Dim ReturnValue As Type = Nothing
+
+            If _ValueType Is GetType(System.String) Then
+                ReturnValue = GetType(System.String)
+            ElseIf _ValueType Is GetType(System.Int32) Then
+                ReturnValue = GetType(System.Int32)
+            ElseIf _ValueType Is GetType(System.Boolean) Then
+                ReturnValue = GetType(System.Boolean)
+            ElseIf _ValueType Is GetType(System.Single) Then
+                ReturnValue = GetType(System.Single)
+            ElseIf _ValueType Is GetType(System.Decimal) Then
+                ReturnValue = GetType(System.Decimal)
+            End If
+
+            Return ReturnValue
+
+        End Function
+
+        Public Overrides Function ToString() As String
+            Dim ReturnValue As Object = Nothing
+
+            If Not _Modified Then
+                If _ValueType Is GetType(System.String) Then
+                    ReturnValue = Convert.ToString(_OriginalStringValue)
+                ElseIf _ValueType Is GetType(System.Int32) Then
+                    ReturnValue = Convert.ToInt32(_OriginalIntegerValue).ToString()
+                ElseIf _ValueType Is GetType(System.Boolean) Then
+                    ReturnValue = Convert.ToBoolean(_OriginalBooleanValue).ToString()
+                ElseIf _ValueType Is GetType(System.Single) Then
+                    ReturnValue = Convert.ToSingle(_OriginalFloatValue).ToString()
+                ElseIf _ValueType Is GetType(System.Decimal) Then
+                    ReturnValue = Convert.ToDecimal(_OriginalDecimalValue).ToString()
+                End If
+            Else
+                If _ValueType Is GetType(System.String) Then
+                    ReturnValue = Convert.ToString(_ModifiedStringValue)
+                ElseIf _ValueType Is GetType(System.Int32) Then
+                    ReturnValue = Convert.ToInt32(_ModifiedIntegerValue).ToString()
+                ElseIf _ValueType Is GetType(System.Boolean) Then
+                    ReturnValue = Convert.ToBoolean(_ModifiedBooleanValue).ToString()
+                ElseIf _ValueType Is GetType(System.Single) Then
+                    ReturnValue = Convert.ToSingle(_ModifiedFloatValue).ToString()
+                ElseIf _ValueType Is GetType(System.Decimal) Then
+                    ReturnValue = Convert.ToDecimal(_ModifiedDecimalValue).ToString()
+                End If
+            End If
+
+            Return ReturnValue
+        End Function
+
+    End Class
+
+    Public Shared Sub WriteTrace(ByVal Query As String, ByVal ConnectionString As String)
+        Dim TraceQuery As String = ""
+
+        Query = Query.Replace("GETDATE()", "'" & DateTime.Now() & "'")
+        Query = Query.Replace("getdate()", "'" & DateTime.Now() & "'")
+        Query = Query.Replace("getdate ()", "'" & DateTime.Now() & "'")
+        Query = Query.Replace("GetDate()", "'" & DateTime.Now() & "'")
+
+        TraceQuery = String.Format("INSERT INTO Trace (Query) VALUES ('{0}')", Query.Replace("'", "''"))
+
+        ExecuteNonQuery(TraceQuery, ConnectionString)
+    End Sub
+
+End Class

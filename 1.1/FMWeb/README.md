@@ -1,0 +1,5 @@
+# FMWeb
+
+Project folder `1.1/FMWeb` in the `Core` solution.
+
+See the solution README for description, attribution, and license.

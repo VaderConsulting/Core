@@ -1,0 +1,1167 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.0.0.0    24 May 11    DR          Enhancement   Original release
+'
+#End Region
+
+#Region " Imports "
+
+Imports System.Web
+Imports System.Web.UI
+Imports System.Web.HttpRequest
+Imports System.Configuration
+Imports System.Text
+Imports Core
+Imports Core.Common
+
+#End Region
+
+Public Class Functions
+
+#Region " Constants "
+
+    Private Const FAILED_IP_ATTEMPT_LIMIT As Int32 = 25
+    Private Const FAILED_USER_LOGON_ATTEMPT_LIMIT As Int32 = 5
+
+#End Region
+
+#Region " Private variables "
+
+    Private _Session As System.Web.SessionState.HttpSessionState
+    Private _ControlConnectionString As String = "" ' Points to StratatelControl_Test
+    Private _ConnectionString As String = ""        ' Points to the specific database according to the opened site
+    Private _TraceContext As System.Web.TraceContext
+
+#End Region
+
+#Region " Public Properties"
+
+    Public Property Session() As System.Web.SessionState.HttpSessionState
+        Get
+            Return _Session
+        End Get
+        Set(ByVal Value As System.Web.SessionState.HttpSessionState)
+            _Session = Value
+        End Set
+    End Property
+
+    Public Property TraceContext() As System.Web.TraceContext
+        Get
+            Return _TraceContext
+        End Get
+        Set(ByVal Value As System.Web.TraceContext)
+            _TraceContext = Value
+        End Set
+    End Property
+
+    Public ReadOnly Property Hostname() As String
+        Get
+            If Not System.Web.HttpContext.Current.Request.ServerVariables Is Nothing Then
+                Return System.Web.HttpContext.Current.Request.ServerVariables("HTTP_HOST")
+            Else
+                Return ("")
+            End If
+
+        End Get
+    End Property
+
+    Public Property ConnectionString() As String
+        Get
+            Return _ConnectionString
+        End Get
+        Set(ByVal Value As String)
+            _ConnectionString = Value
+        End Set
+    End Property
+
+#End Region
+
+#Region " Constructors"
+
+    Public Sub New(ByVal ControlConnectionString As String, ByVal Session As System.Web.SessionState.HttpSessionState)
+        _ControlConnectionString = ControlConnectionString
+        _Session = Session
+        _TraceContext = HttpContext.Current.Trace
+
+        _TraceContext.Write("Inside FMWeb.Functions.Constructor")
+
+    End Sub
+
+#End Region
+
+#Region " Public Methods "
+
+    Public Sub StopDoubleClick(ByVal WebPage As Web.UI.Page)
+        Dim Script As String = ""
+
+        _TraceContext.Write("Inside FMWeb.Functions.StopDoubleClick")
+
+        If (Not WebPage.IsStartupScriptRegistered("NoDoubleClick")) Then
+
+            ' Create script to be registered
+            Script = "<script>"
+            Script &= "function ImageSwap(img,imgname) {img.src = imgname;}"
+            Script &= "   function FreezeScreen(msg) {"
+            Script &= "     if (typeof(Page_ClientValidate) == 'function') "
+            Script &= "     {"
+            Script &= "      if (Page_ClientValidate() == false) { return false; } "
+            Script &= "     }"
+            Script &= "      scroll(0,0);"
+            Script &= "      var outerPane = document.getElementById('FreezePane');"
+            Script &= "      var innerPane = document.getElementById('InnerFreezePane');"
+            Script &= "      if (outerPane) outerPane.className = 'FreezePaneOn';"
+            Script &= "      if (innerPane) innerPane.innerHTML = msg;"
+            Script &= "   }"
+            Script &= "</script>"
+            Script &= "<div align='center' id='FreezePane' class='FreezePaneOff'> <div id='InnerFreezePane' class='InnerFreezePane'> </div></div>"
+
+            _TraceContext.Write("Registering NoDoubleClick script")
+
+            WebPage.RegisterStartupScript("NoDoubleClick", Script)
+
+            For Each FormControl As Control In WebPage.Controls
+                If TypeOf FormControl Is System.Web.UI.WebControls.ImageButton Then
+                    Dim ThisButton As System.Web.UI.WebControls.ImageButton = DirectCast(FormControl, System.Web.UI.WebControls.ImageButton)
+
+                    If Not (ThisButton.ImageUrl Like "*Download*") Then
+                        ThisButton.Attributes.Add("onMouseUp", "FreezeScreen('Page Loading. Please wait...');")
+                    End If
+
+                ElseIf TypeOf FormControl Is System.Web.UI.WebControls.DropDownList Then
+                    Dim ThisDropDownList As System.Web.UI.WebControls.DropDownList = DirectCast(FormControl, System.Web.UI.WebControls.DropDownList)
+
+                    If ThisDropDownList.AutoPostBack Then
+                        ThisDropDownList.Attributes.Add("onChange", "FreezeScreen('Page Loading. Please wait...');")
+                    End If
+
+                ElseIf TypeOf FormControl Is System.Web.UI.WebControls.Button Then
+                    Dim ThisButton As System.Web.UI.WebControls.Button = DirectCast(FormControl, System.Web.UI.WebControls.Button)
+
+                    ThisButton.Attributes.Add("OnClick", "FreezeScreen('Page Loading. Please wait...');")
+                Else
+                    ' Other controls we don't want to register.
+                End If
+                'If FormControl.HasControls() Then
+                '    StopDoubleClick(FormControl)
+                'End If
+            Next
+        Else
+            ' We don't need to do anything as the script is already registered with this page
+            _TraceContext.Write("NoDoubleClick script already registered")
+        End If
+
+    End Sub
+
+    Public Function LoadLoginDetails(ByVal Username As String, ByVal SiteID As Int32) As Result
+        Dim SelectQuery As String = ""                                                 ' Used to compose the query
+        Dim Data As DataSet = Nothing                                                  ' The dataset to base the returned data on
+        Dim CollectionResult As Collections.Specialized.NameValueCollection = Nothing  ' The data that will be returned
+        Dim ThisResult As New Result                                                   ' The actual object that holds the returned data
+
+        ' Show some tracing info (for debugging purposes later on)
+        _TraceContext.Write("Inside FMWeb.Functions.LoadLoginDetails")
+
+        ' Compose the select query
+        SelectQuery = "Select * from UserLogin where LoginName = '" & Username & "' AND SiteID = " & SiteID.ToString & " AND EndDate IS NULL"
+
+        ' This is where we perform the database access.
+        ' All Core.SQL functions return exceptions to the calling method
+        Try
+            Data = Core.SQL.Functions.Execute(SelectQuery, _ControlConnectionString)
+            CollectionResult = GetCollectionFromDataset(Data)
+
+            ThisResult.ResultType = Result.ReturnType.NameValueCollection
+            ThisResult.Result = CollectionResult
+            ThisResult.Success = True
+        Catch ex As Exception ' Catch any problems.
+            ' Tell the calling method that an exception was returned
+            ThisResult.ResultType = Result.ReturnType.Exception
+            ' Put the exception into the returned object for the calling Method to handle appropriately
+            ThisResult.Result = ex
+            ' Set a flag so the calling method knows the call did not succeed
+            ThisResult.Success = False
+        End Try
+
+        ' Cleanup
+        Data.Dispose()
+        Data = Nothing
+
+        ' Return the custom result type
+        Return ThisResult
+
+    End Function
+
+    Public Function LoadCurrentSiteDetails(ByVal SiteName As String) As Result
+        Dim SelectQuery As String = ""                                                 ' Used to compose the query
+        Dim Data As DataSet = Nothing                                                  ' The dataset to base the returned data on
+        Dim CollectionResult As Collections.Specialized.NameValueCollection = Nothing  ' The data that will be returned
+        Dim ThisResult As New Result                                                   ' The actual object that holds the returned data
+
+        _TraceContext.Write("Inside FMWeb.Functions.LoadCurrentSiteDetails")
+
+        SelectQuery = "SELECT * FROM CurrentSiteDetailsView WHERE hostName = '" & SiteName & "' AND EndDate IS NULL"
+
+        ' This is where we perform the database access.
+        ' All Core.SQL functions return exceptions to the calling method
+        Try
+            Data = Core.SQL.Functions.Execute(SelectQuery, _ControlConnectionString)
+            CollectionResult = GetCollectionFromDataset(Data)
+
+            ThisResult.ResultType = Result.ReturnType.NameValueCollection
+            ThisResult.Result = CollectionResult
+            ThisResult.Success = True
+        Catch ex As Exception ' Catch any problems.
+            ' Tell the calling method that an exception was returned
+            ThisResult.ResultType = Result.ReturnType.Exception
+            ' Put the exception into the returned object for the calling Method to handle appropriately
+            ThisResult.Result = ex
+            ' Set a flag so the calling method knows the call did not succeed
+            ThisResult.Success = False
+        End Try
+
+        ' Cleanup
+        Data.Dispose()
+        Data = Nothing
+
+        ' Return the custom result type
+        Return ThisResult
+
+    End Function
+
+    Public Function LoadDatabaseDetails(ByVal DatabaseID As Int32) As Result
+        Dim SelectQuery As String = ""                                                 ' Used to compose the query
+        Dim Data As DataSet = Nothing                                                  ' The dataset to base the returned data on
+        Dim CollectionResult As Collections.Specialized.NameValueCollection = Nothing  ' The data that will be returned
+        Dim ThisResult As New Result                                                   ' The actual object that holds the returned data
+
+        ' Show some tracing info (for debugging purposes later on)
+        _TraceContext.Write("Inside FMWeb.Functions.LoadDatabaseDetails")
+
+        ' Compose the select query
+        SelectQuery = "SELECT * FROM DatabaseDetails WHERE UID = "REDACTED" This is where we perform the database access.
+        ' All Core.SQL functions return exceptions to the calling method
+        Try
+            Data = Core.SQL.Functions.Execute(SelectQuery, _ControlConnectionString)
+            CollectionResult = GetCollectionFromDataset(Data)
+
+            ThisResult.ResultType = Result.ReturnType.NameValueCollection
+            ThisResult.Result = CollectionResult
+            ThisResult.Success = True
+        Catch ex As Exception ' Catch any problems.
+            ' Tell the calling method that an exception was returned
+            ThisResult.ResultType = Result.ReturnType.Exception
+            ' Put the exception into the returned object for the calling Method to handle appropriately
+            ThisResult.Result = ex
+            ' Set a flag so the calling method knows the call did not succeed
+            ThisResult.Success = False
+        End Try
+
+        ' Cleanup
+        Data.Dispose()
+        Data = Nothing
+
+        ' Return the custom result type
+        Return ThisResult
+
+    End Function
+
+    Public Function GetNewPassword(ByVal PasswordLength As Int32) As String
+        Dim Vowels() As String = New String() {"a", "e", "i", "u"}
+        Dim Consonants() As String = New String() {"b", "c", "d", "f", "g", "h", "j", "k", "m", "n", "p", "r", "s"}
+        Dim DoubleConsonants() As String = New String() {"C", "D", "F", "G", "L", "N", "P", "R", "S", "T"}
+        Dim WroteConsonant As Boolean = False
+        Dim Counter As Integer = 0
+        Dim Randomiser As Random = Nothing
+        Dim PasswordBuffer As New StringBuilder
+        Dim Result As String = ""
+
+        _TraceContext.Write("Inside FMWeb.Functions.GetNewPassword")
+
+        ' Allow the timer time to randomise
+        System.Threading.Thread.Sleep(1)
+
+        Randomiser = New Random(Environment.TickCount)
+
+        For Counter = 2 To PasswordLength
+            If PasswordBuffer.Length > 0 And (WroteConsonant = False) And (Randomiser.Next(100) < 10) Then
+                PasswordBuffer.Append(DirectCast(DoubleConsonants(Randomiser.Next(DoubleConsonants.Length)), System.Char), 2)
+                Counter += 1
+                WroteConsonant = True
+            Else
+                If (WroteConsonant = False) And (Randomiser.Next(100) < 90) Then
+                    PasswordBuffer.Append(Consonants(Randomiser.Next(Consonants.Length)))
+                    WroteConsonant = True
+                Else
+                    PasswordBuffer.Append(Vowels(Randomiser.Next(Vowels.Length)))
+                    WroteConsonant = False
+                End If
+            End If
+        Next
+
+        'Size the buffer
+        PasswordBuffer.Length = PasswordLength - 1
+        Result = PasswordBuffer.ToString & Randomiser.Next(10).ToString()
+
+        PasswordBuffer = Nothing
+        Randomiser = Nothing
+
+        Return Result
+    End Function
+
+    Public Function IPAddressInBlackList(ByVal IPAddress As String) As Result
+        Dim SelectQuery As String = ""                                                 ' Used to compose the query
+        Dim Data As DataSet = Nothing                                                  ' The dataset to base the returned data on
+        Dim ThisResult As New Result                                                   ' The actual object that holds the returned data 
+
+        ' Show some tracing info (for debugging purposes later on)
+        _TraceContext.Write("Inside FMWeb.Functions.IPAddressInBlackList")
+
+        ' Compose the select query
+        SelectQuery = "SELECT * FROM CurrentIPBlackListView WHERE (IPAddress = '" & IPAddress & "')"
+
+        ' This is where we perform the database access.
+        ' All Core.SQL functions return exceptions to the calling method
+        Try
+            Data = Core.SQL.Functions.Execute(SelectQuery, _ControlConnectionString)
+
+            If Data.Tables(0).Rows.Count > 0 Then
+                _TraceContext.Write("This IP Address (" & IPAddress & ") is Blacklisted")
+                ThisResult.ResultType = Result.ReturnType.Boolean
+                ThisResult.Result = True
+                ThisResult.Success = True
+            Else
+                _TraceContext.Write("This IP Address (" & IPAddress & ") is ok")
+                ThisResult.ResultType = Result.ReturnType.Boolean
+                ThisResult.Result = False
+                ThisResult.Success = True
+            End If
+
+        Catch ex As Exception ' Catch any problems.
+            ' Tell the calling method that an exception was returned
+            ThisResult.ResultType = Result.ReturnType.Exception
+            ' Put the exception into the returned object for the calling Method to handle appropriately
+            ThisResult.Result = ex
+            ' Set a flag so the calling method knows the call did not succeed
+            ThisResult.Success = False
+        End Try
+
+        ' Cleanup
+        Data.Dispose()
+        Data = Nothing
+
+        ' Return the custom result type
+        Return ThisResult
+
+    End Function
+
+    Public Function LoginAuthorised(ByVal Username As String, ByVal Password As String, ByVal SiteID As Int32, ByVal DefaultPage As Boolean, ByVal IPAddress As String, ByVal Referrer As String) As Result
+        Dim SelectQuery As String = ""                                                 ' Used to compose the query
+        Dim Data As DataSet = Nothing                                                  ' The dataset to base the returned data on
+        Dim InterimResult As Boolean = False
+        Dim LogonDetails As Collections.Specialized.NameValueCollection = Nothing      ' The data that will be returned
+        Dim UserDetails As Collections.Specialized.NameValueCollection = Nothing       ' Used to determine data to return
+        Dim ClientID As Int32 = 0
+        Dim PasswordIsCorrect As Boolean = False
+        Dim ResultString As String = ""
+        Dim PasswordValid As Boolean = False
+        Dim LoginActive As Boolean = False
+        Dim UserFullName As String = ""
+        Dim UserID As Int32 = 0
+        Dim UserRole As Int32 = 0
+        Dim MessageID As Int32 = 0
+        Dim OrgUnitID As Int32 = 0
+        Dim LoginEmailAddress As String = ""
+        Dim UserEmailAddress As String = ""
+        Dim FinalEmailAddress As String = ""
+        Dim Account As LoginDTO = New LoginDTO
+        Dim TheResult As New Result                                                    ' The actual object that holds the returned data
+
+        _TraceContext.Write("Inside FMWeb.Functions.LoginAuthorised")
+
+        ' To prevent SQL injection problems, first we have to replace any apostrophe's with two of them
+        ' This should only be done once (as the data is queried/inserted)
+        Username = Username.Replace("'", "''")
+        Password =REDACTED"'", "''")
+
+        ' Compose the select query
+        SelectQuery = "SELECT * FROM UserLogin WHERE LoginName = '" & Username & "' AND EndDate IS NULL AND SiteID = " & SiteID.ToString()
+
+        ' All Core.SQL functions return exceptions to the calling method
+        Try
+            Data = Core.SQL.Functions.Execute(SelectQuery, _ControlConnectionString)
+
+            If Data.Tables(0).Rows.Count > 0 Then
+                ' We have found the user
+                _TraceContext.Write("This Logon name is valid")
+
+                ' Populate a collection containing the Logon details
+                LogonDetails = GetCollectionFromDataset(Data)
+
+                '  Get Client ID
+                ' There is usually an associated ClientID (unless a developer is logging on)
+                If LogonDetails("ClientID").ToString <> "" And LogonDetails("ClientID").ToString <> "0" Then
+                    ' Yes - an associated client
+                    _TraceContext.Write("Associated Client ID = " & LogonDetails("ClientID").ToString)
+                    ClientID = IntegerFromString(LogonDetails("ClientID").ToString)
+                Else
+                    ' No - probably a developer
+                    _TraceContext.Write("No Associated Client ID")
+                    ClientID = 0
+                End If
+
+                If LogonDetails("Password").ToString = Password Then
+                    ' Correct password
+                    _TraceContext.Write("Correct password")
+                    PasswordIsCorrect = True
+                Else
+                    ' Incorrect password
+                    _TraceContext.Write("Incorrect password")
+                    PasswordIsCorrect = False
+                End If
+
+                If PasswordIsCorrect Then
+                    ' Now check to ensure the password has not expired
+                    If LogonDetails("PasswordExp").ToString() = "" Then
+                        _TraceContext.Write("Password is valid")
+                        PasswordValid = True
+                    Else
+                        If CDate(LogonDetails("PasswordExp")) < Now Then
+                            _TraceContext.Write("Password has expired")
+                            ResultString = "Password has Expired"
+                            PasswordValid = False
+                        Else
+                            PasswordValid = True
+                        End If
+                    End If
+                End If
+
+                If PasswordIsCorrect And PasswordValid Then
+                    ' Is the Login active?
+                    If LogonDetails("UserActive").ToString.ToLower <> "true" Then
+                        _TraceContext.Write("Login is not Active")
+                        ResultString = "Login is not Active"
+                        'LogFailedIP(txbUserName.Text.ToString(), txbPass.Text.ToString(), True, Reason)
+                        LoginActive = False
+                    Else
+                        _TraceContext.Write("Login is Active")
+                        LoginActive = True
+                    End If
+                Else
+                    ' Either the Password is incorrect or the password is invalid (i.e. expired)
+                End If
+
+                ' ================= Finally ... =================
+                If PasswordIsCorrect And PasswordValid And LoginActive Then
+                    _TraceContext.Write("Password correct, Password is valid and Login is active")
+                    ' Save a few other details
+                    UserRole = IntegerFromString(LogonDetails("UserRole").ToString)
+                    UserID =REDACTED"UserID").ToString)
+                    LoginEmailAddress = LogonDetails("email").ToString
+
+                    If UserID =REDACTED Then ' No associated User ID
+                        ' Set the Email address to the Login Email address
+                        FinalEmailAddress = LoginEmailAddress
+
+                        _TraceContext.Write("Using Login Email Address (" & LoginEmailAddress & ") for Session variable (UserID = "REDACTED")")
+
+                        If UserRole = 1 Then
+                            UserFullName = "Stratatel Administrator - " & Username
+                        Else
+                            UserFullName = "Blank User Details for " & Username
+                        End If
+                    Else ' Apparently there is an associated User ID, but we have to check that it is valid
+                        SelectQuery = "SELECT Salutation, FirstName, LastName, UserID, Email, OrgUnitID FROM Users WHERE (EndDate IS NULL) AND (UserID = "REDACTED")"
+                        Data = Core.SQL.Functions.Execute(SelectQuery, _ConnectionString)
+
+                        If Data.Tables(0).Rows.Count > 0 Then
+                            ' Yes, the associated User ID is valid
+
+                            ' Populate a collection containing the User details
+                            UserDetails = GetCollectionFromDataset(Data)
+
+                            UserEmailAddress = UserDetails("Email").ToString.Trim
+
+                            If UserEmailAddress.Length > 0 Then ' If the User has an email address, then use that
+                                _TraceContext.Write("Using User Email Address (" & UserEmailAddress & ") for Session variable as the User has an Email Address")
+                                FinalEmailAddress = UserEmailAddress
+                            Else ' otherwise, use the Logon email address
+                                _TraceContext.Write("Using Login Email Address (" & LoginEmailAddress & ") for Session variable as User Email address is blank")
+                                FinalEmailAddress = LoginEmailAddress
+                            End If
+
+                            UserFullName = UserDetails("Salutation").ToString() & " " & UserDetails("FirstName").ToString() & " " & UserDetails("LastName").ToString()
+                        Else
+                            ' No - the associated User ID is invalid
+                            _TraceContext.Write("The specified User ID is not valid")
+
+                            ' At least attempt to use a valid email address
+                            FinalEmailAddress = LoginEmailAddress
+
+                            _TraceContext.Write("Using Login Email Address (" & LoginEmailAddress & ") for Session variable as there is no associated user")
+
+                            UserFullName = "Blank User Details"
+                        End If
+                    End If
+
+                    If LogonDetails("orgUnitID").ToString() = "" Then
+                        OrgUnitID = 0
+                    Else
+                        OrgUnitID = IntegerFromString(LogonDetails("orgUnitID").ToString)
+                    End If
+
+                    ' Check if there are any messages for this Logon
+                    MessageID = 0 'checkMessage(ClientID, UserRole.ToString, OrgUnitID.ToString(), LogonDetails("LoginID").ToString())
+
+                    ' Save all Login details for the DTO
+                    With Account
+                        .ClientID = ClientID
+                        .UserID =REDACTED
+                        .UserRoleID = UserRole
+                        .FirstLogin = CBool(LogonDetails("FirstLogin").ToString)
+                        .Home = LogonDetails("Home").ToString
+                        .LoginID = IntegerFromString(LogonDetails("LoginID").ToString)
+                        .MarkupSecurity = LogonDetails("MarkupSecurity").ToString
+                        .MarkupDisplay = LogonDetails("MarkupDisplay").ToString
+                        .OrgUnitID = OrgUnitID
+                        .SiteID = SiteID
+                    End With
+
+                    ' Tell the calling method that a string was returned
+                    TheResult.ResultType = Result.ReturnType.String
+                    ' Put the string into the returned object for the calling method to access
+                    TheResult.Result = "Login success"
+                    ' Set a flag so the calling method knows the call did succeed
+                    TheResult.Success = True
+
+                    ' Finally, log the user into the system
+                    _TraceContext.Write("Logging User into FleetManager")
+                    TheResult = LoginUser(Account, UserFullName, Username, MessageID, DefaultPage, IPAddress, Referrer)
+
+                Else ' Login is disallowed
+                    _TraceContext.Write("Login is disallowed (Password incorrect/Password not valid/Login not active)")
+                    ' Tell the calling method that a string was returned
+                    TheResult.ResultType = Result.ReturnType.String
+                    ' Put the string into the returned object for the calling method to access
+                    TheResult.Result = "Invalid Username or password (102)"
+                    ' Set a flag so the calling method knows the call did not succeed
+                    TheResult.Success = False
+
+                    _TraceContext.Write("Logging incorrect Username")
+                    LogFailedLogonAttempt(Username, Password, SiteID, ClientID, ResultString, CInt(LogonDetails("LoginID").ToString()), IPAddress, Referrer)
+
+                End If
+            Else ' This username is not valid
+                _TraceContext.Write("This username is not valid")
+                ' Tell the calling method that a string was returned
+                TheResult.ResultType = Result.ReturnType.String
+                ' Put the string into the returned object for the calling method to access
+                TheResult.Result = "Invalid Username or password (103)"
+                ' Set a flag so the calling method knows the call did not succeed
+                TheResult.Success = False
+
+                ResultString = "This username is not valid"
+
+                _TraceContext.Write("Logging Failed IP Address")
+                LogFailedIPAddress(Username, Password, False, IPAddress, ResultString, Referrer)
+            End If
+
+            Data.Dispose()
+            Data = Nothing
+
+        Catch ex As Exception ' Catch any problems.
+            ' Tell the calling method that an exception was returned
+            TheResult.ResultType = Result.ReturnType.Exception
+            ' Put the exception into the returned object for the calling Method to handle appropriately
+            TheResult.Result = ex
+            ' Set a flag so the calling method knows the call did not succeed
+            TheResult.Success = False
+
+        End Try
+
+        _TraceContext.Write("Leaving FMWeb.Functions.LoginAuthorised")
+
+        Return TheResult
+
+    End Function
+
+    Public Sub SetSessionVariables(ByRef CurrentSession As System.Web.SessionState.HttpSessionState)
+        Dim Location As String = ""
+        Dim uri As uri = Nothing
+        Dim Segments As String() = {}
+        Dim url As String = ""
+        Dim CurrentHost As String = ""
+        Dim LoadResult As Result = Nothing
+        Dim SiteDetails As New Collections.Specialized.NameValueCollection
+        Dim DatabaseDetails As New Collections.Specialized.NameValueCollection
+
+        _TraceContext.Write("Inside FMWeb.Functions.SetSessionVariables")
+
+        _TraceContext.Write("FMWeb Control Connection String", _ControlConnectionString)
+
+        If Not System.Web.HttpContext.Current Is Nothing Then
+            uri = System.Web.HttpContext.Current.Request.Url
+            Segments = uri.Segments
+            url = (uri.Scheme & "://" & uri.Host)
+            CurrentHost = System.Web.HttpContext.Current.Request.ServerVariables("HTTP_HOST")
+        End If
+
+        _TraceContext.Write("FMWeb.Host", CurrentHost)
+
+        If CurrentHost.Length > 0 Then
+            _TraceContext.Write("Loading site details for " & CurrentHost)
+
+            LoadResult = LoadCurrentSiteDetails(CurrentHost)
+
+            ' LoadResult is our special type used to return specialised information in a single object type
+            ' For this call it cal either by a NameValue Collection, or an exception
+            ' To determine which, inspect the ResultType
+            Select Case LoadResult.ResultType
+                Case Result.ReturnType.NameValueCollection
+                    SiteDetails = DirectCast(LoadResult.Result, Specialized.NameValueCollection)
+                Case Result.ReturnType.Exception
+                    Throw DirectCast(LoadResult.Result, Exception)
+            End Select
+
+        End If
+
+        ' The SiteDetails includes a Database ID.  We have to use this to get the connection string
+        If SiteDetails("DatabaseID") <> "" Then
+            _TraceContext.Write("Loading database details for Database ID " & SiteDetails("DatabaseID").ToString)
+
+            LoadResult = LoadDatabaseDetails(IntegerFromString(SiteDetails("DatabaseID")))
+
+            ' LoadResult is our special type used to return specialised information in a single object type
+            ' For this call it cal either by a NameValue Collection, or an exception
+            ' To determine which, inspect the ResultType
+            Select Case LoadResult.ResultType
+                Case Result.ReturnType.NameValueCollection
+                    DatabaseDetails = DirectCast(LoadResult.Result, Specialized.NameValueCollection)
+                Case Result.ReturnType.Exception
+                    Throw DirectCast(LoadResult.Result, Exception)
+            End Select
+        End If
+
+        Location = url
+        If Not url.EndsWith("/") Then
+            Location &= "/"
+        End If
+
+        ' Save the current connection string
+        CurrentSession("DSN") = _ControlConnectionString
+
+        CurrentSession("SiteDetails") = CurrentHost
+        CurrentSession("Style") = Location & "Styles/" & GetValueFromCollection("StyleSheet", SiteDetails)
+
+        ' Connection string comes from another table
+        CurrentSession("OperationalDB") = GetValueFromCollection("ConnectionString", DatabaseDetails)
+        _ConnectionString = CurrentSession("OperationalDB").ToString
+
+        CurrentSession("ProductName") = GetValueFromCollection("ProductName", SiteDetails)
+        CurrentSession("EmailHelp") = "mailto:" & GetValueFromCollection("HelpdeskEmail", SiteDetails) & "?subject=Helpdesk Enquiry - " & GetValueFromCollection("ProductName", SiteDetails)
+        CurrentSession("OnlineHelp") = Location & GetValueFromCollection("HelpFile", SiteDetails)
+        CurrentSession("PhoneHelp") = ""
+        CurrentSession("FooterText") = GetValueFromCollection("PageFooter", SiteDetails)
+        CurrentSession("Logo") = Location & GetValueFromCollection("SiteLogo", SiteDetails)
+        CurrentSession("TitleBar") = GetValueFromCollection("BrowserTitleBar", SiteDetails)
+        CurrentSession("LogoLeft") = GetValueFromCollection("SiteLogoLeft", SiteDetails)
+        CurrentSession("LogoRight") = GetValueFromCollection("SiteLogoRight", SiteDetails)
+        CurrentSession("SiteID") = GetValueFromCollection("SiteID", SiteDetails)
+        CurrentSession("TaxType") = GetValueFromCollection("TaxType", SiteDetails)
+        CurrentSession("Region") = GetValueFromCollection("Region", SiteDetails)
+        CurrentSession("CultureInfo") = GetValueFromCollection("CultureInfo", SiteDetails)
+        CurrentSession("StateLabel") = GetValueFromCollection("StateLabel", SiteDetails)
+        CurrentSession("SuburbLabel") = GetValueFromCollection("SuburbLabel", SiteDetails)
+        CurrentSession("WelcomeText") = GetValueFromCollection("WelcomeText", SiteDetails)
+        CurrentSession("HelpdeskEmail") = GetValueFromCollection("HelpdeskEmail", SiteDetails)
+        CurrentSession("DatabaseName") = GetValueFromCollection("DatabaseName", SiteDetails)
+        CurrentSession("Location") = Location
+
+        If GetValueFromCollection("HelpPhone", SiteDetails) = "" Then
+            CurrentSession("HelpPhone") = ""
+        Else
+            CurrentSession("HelpPhone") = " or phone " & GetValueFromCollection("HelpPhone", SiteDetails) & ""
+        End If
+
+    End Sub
+
+    Public Sub LoadClientParameters(ByVal ClientID As Int32)
+        Dim Query As String = ""                                                       ' Used to compose the query
+        Dim Data As DataSet = Nothing                                                  ' The dataset to base the returned data on
+        Dim ClientDetails As Collections.Specialized.NameValueCollection = Nothing     ' The data that will be returned
+
+        ' Show some tracing info (for debugging purposes later on)
+        _TraceContext.Write("Inside FMWeb.LoadClientParameters for Client ID " & ClientID.ToString)
+
+        ' Compose the select query
+        Query = "SELECT typeFilter, AllowedTypes, typeFilter, ISNULL(PersonalReporting,'0') as PersonalReporting  FROM Client WHERE (ClientID = " & ClientID.ToString & ") AND (EndDate IS NULL)"
+
+        ' This is where we perform the database access.
+        ' All Core.SQL functions return exceptions to the calling method
+        Try
+            Data = Core.SQL.Functions.Execute(Query, HttpContext.Current.Session("OperationalDB").ToString)
+
+            If Data.Tables(0).Rows.Count > 0 Then
+                _TraceContext.Write("Retrieving Client details for ClientID " & ClientID.ToString)
+
+                ' Populate a collection containing the Client details
+                ClientDetails = GetCollectionFromDataset(Data)
+
+                _Session("TypeFilter") = ClientDetails("typeFilter").ToString
+                _Session("AllowedTypes") = ClientDetails("AllowedTypes").ToString
+                _Session("DefaultType") = ClientDetails("typeFilter").ToString
+                _Session("PersonalReporting") = ClientDetails("PersonalReporting").ToString()
+            Else
+                _TraceContext.Write("Setting some default Client details because ClientID is 0")
+
+                _Session("TypeFilter") = "1"
+                _Session("AllowedTypes") = "1"
+                _Session("DefaultType") = "1"
+                _Session("PersonalReporting") = "0"
+            End If
+
+        Catch ex As Exception ' Catch any problems.
+            ' Very unlikely to see any issues here, but if we do, we will just raise an exception
+            Throw ex
+        End Try
+
+        _TraceContext.Write("Leaving FMWeb.LoadClientParameters")
+
+    End Sub
+
+    Public Sub LoadLastBillingPeriodValues(ByVal ClientID As Int32)
+        Dim Query As String = ""
+        Dim BillQueryBuilder As New StringBuilder
+        Dim BillQuery As String = ""
+        Dim Data As DataSet = Nothing
+        Dim TablePrefixes As Collections.Specialized.NameValueCollection = Nothing
+        Dim TablePrefixCount As Int32 = 0
+        Dim Counter As Int32 = 0
+
+        _TraceContext.Write("Inside FMWeb.LoadLastBillingPeriodValues for Client ID " & ClientID.ToString)
+
+        ' First get prefixes
+        BillQuery = "SELECT TablePrefix FROM ServiceType"
+        Data = Core.SQL.Functions.Execute(BillQuery, _ConnectionString)
+
+        ' Now build a query to retrieve the last BillMonth and BillYear from that clients data
+        If Data.Tables(0).Rows.Count > 0 Then
+            BillQueryBuilder.Append("SELECT     TOP (1) BillMonth, BillYear " & vbCrLf)
+            BillQueryBuilder.Append("FROM         (SELECT     BillMonth, BillYear " & vbCrLf)
+
+            For Each Row As DataRow In Data.Tables(0).Rows
+                Counter += 1
+                _TraceContext.Write(Row.Item(0).ToString)
+                BillQueryBuilder.Append("                       FROM          " & Row.Item(0).ToString & "BillDetails " & vbCrLf)
+                BillQueryBuilder.Append("                       WHERE      (ClientID = " & ClientID.ToString & ") " & vbCrLf)
+                If Counter < Data.Tables(0).Rows.Count Then
+                    BillQueryBuilder.Append("                       UNION ALL " & vbCrLf)
+                    BillQueryBuilder.Append("                       SELECT     billMonth, billYear" & vbCrLf)
+                Else
+                    BillQueryBuilder.Append("                       )AS T1 " & vbCrLf)
+                    BillQueryBuilder.Append("GROUP BY BillMonth, BillYear " & vbCrLf)
+                    BillQueryBuilder.Append("ORDER BY BillYear DESC, BillMonth DESC " & vbCrLf)
+                End If
+            Next
+            _TraceContext.Write("==--End of bill types--==")
+
+            BillQuery = BillQueryBuilder.ToString
+            _TraceContext.Write("Bill Period Query", BillQuery)
+
+            ' Get the data
+            Data = Core.SQL.Functions.Execute(BillQuery, _ConnectionString)
+
+            ' Set Session variables
+            If Data.Tables(0).Rows.Count > 0 Then
+                _Session("theMonth") = Data.Tables(0).Rows(0).Item("BillMonth").ToString
+                _Session("theYear") = Data.Tables(0).Rows(0).Item("BillYear").ToString
+            Else
+                _Session("theMonth") = Now.Month.ToString
+                _Session("theYear") = Now.Year.ToString
+            End If
+        Else
+            ' No billing for this client
+            _Session("theMonth") = Now.Month.ToString
+            _Session("theYear") = Now.Year.ToString
+        End If
+
+        _TraceContext.Write("Leaving FMWeb.LoadLastBillingPeriodValues")
+
+    End Sub
+
+    Public Function ClientLockedOut(ByVal ClientID As Int32) As Boolean
+        Dim Query As String = ""
+        Dim Data As DataSet = Nothing
+        Dim Result As Boolean = False
+
+        ' Has the client been Locked out? (this is a temporary lockout)
+        Query = "SELECT TOP 1 Message, StartTime FROM ClientLockout WHERE ((ClientLockout.EndTime > GETDATE() OR ClientLockout.EndTime IS NULL) AND AutoEnd = 1) AND (ClientLockout.Disabled = 0) AND (ClientID = " & ClientID.ToString & ") ORDER BY iLevel DESC, StartTime"
+        Data = Core.SQL.Functions.Execute(Query, _ConnectionString)
+
+        If Data.Tables(0).Rows.Count > 0 Then
+            _TraceContext.Write("This Client has been locked out")
+            Result = True
+        Else
+            Result = False
+        End If
+
+        Return Result
+
+    End Function
+
+    Public Function GetClientList() As DataSet
+        Dim Query As String = ""
+        Dim Data As DataSet = Nothing
+
+        Query = "SELECT ClientID, ClientName FROM Client WHERE EndDate IS NULL ORDER BY ClientName"
+        Data = Core.SQL.Functions.Execute(Query, _Session("OperationalDB").ToString)
+
+        Return Data
+
+    End Function
+
+#End Region
+
+#Region " Private Methods "
+
+    Private Function GetCollectionFromDataset(ByVal Data As DataSet) As Collections.Specialized.NameValueCollection
+        Dim Result As New Collections.Specialized.NameValueCollection
+
+        _TraceContext.Write("Inside FMWeb.Functions.GetCollectionFromDataset")
+
+        If Data.Tables(0).Rows.Count > 0 Then
+            For Each Row As DataRow In Data.Tables(0).Rows
+                For Each Field As System.Data.DataColumn In Data.Tables(0).Columns
+                    Result.Add(Field.ColumnName, Row.Item(Field.Ordinal).ToString & "")
+                Next
+            Next
+        End If
+
+        Return Result
+    End Function
+
+    Private Sub LogFailedLogonAttempt(ByVal UserName As String, ByVal SubmittedPassword As String, ByVal SiteID As Int32, ByVal ClientID As Int32, ByVal FailureReason As String, ByVal LoginID As Int32, ByVal IPAddress As String, ByVal Referrer As String)
+        Dim ErrorMessage As String = ""
+        Dim Query As String = ""
+        Dim Data As DataSet = Nothing
+        Dim FailedLogonDetails As Collections.Specialized.NameValueCollection = Nothing
+
+        _TraceContext.Write("Inside FMWeb.Functions.LogFailedLogonAttempt")
+
+        ErrorMessage = "Access Denied:  The User Name and/or Password entered were not correct. ( [errorcode] )<br><br>Please check your User Name and Password before trying again.<br><br><br>If you are unsure of your password please use the link below  Forgotten your password?<br><br><br>If you require further assistance please contact the Helpdesk on [HelpdeskEmail] [HelpdeskNumber]."
+        ErrorMessage = Replace(ErrorMessage, "[errorcode]", "101")
+        ErrorMessage = Replace(ErrorMessage, "[HelpdeskEmail]", "<a href='mailto:" & _Session("HelpdeskEmail").ToString & "'>" & _Session("HelpdeskEmail").ToString & "</a>")
+        ErrorMessage = Replace(ErrorMessage, "[HelpdeskNumber]", _Session("HelpPhone").ToString)
+
+        'Log Failed User attempt
+        Query = "INSERT INTO UserFailedLog (IPAddress, LoginName, PassAttempt, SiteID, ClientID, DateTime, ReferringPage, Reset, Reason, LoginID) VALUES ('" & IPAddress & "','" & UserName & "','" & SubmittedPassword & "', " & SiteID.ToString & ", " & ClientID & ",'" & Now & "','" & Referrer & "',0, '" & FailureReason & "', " & LoginID & ")"
+        Core.SQL.Functions.ExecuteNonQuery(Query, _ControlConnectionString)
+
+        Query = "SELECT COUNT(UID) AS Attempts FROM CurrentFailedUsers WHERE (LoginName = '" & UserName & "') AND ((ClientID = " & ClientID & ") OR (ClientID IS NULL))"
+        Data = Core.SQL.Functions.Execute(Query, _ControlConnectionString)
+
+        If Data.Tables(0).Rows.Count > 0 Then
+            ' Populate a collection containing the Failed Logon details
+            FailedLogonDetails = GetCollectionFromDataset(Data)
+
+            If CInt(FailedLogonDetails("Count")) > FAILED_USER_LOGON_ATTEMPT_LIMIT Then
+                'Disable user
+                DisableUser(UserName, LoginID, IPAddress)
+            End If
+        End If
+
+        Data.Dispose()
+        Data = Nothing
+
+    End Sub
+
+    Private Sub LogFailedIPAddress(ByVal UserName As String, ByVal SubmittedPassword As String, ByVal ValidUser As Boolean, ByVal IPAddress As String, ByVal FailureReason As String, ByVal Referrer As String)
+        Dim Query As String = ""
+        Dim ErrorMessage As String = ""
+        Dim Data As DataSet = Nothing
+        Dim BlacklistDetails As Collections.Specialized.NameValueCollection = Nothing
+
+        _TraceContext.Write("Inside FMWeb.Functions.LogFailedIPAddress")
+
+        'ErrorMessage = "Access Denied:  The User Name and/or Password entered were not correct. ( [errorcode] )<br/><br/>Please check your User Name and Password before trying again.<br><br><br>If you are unsure of your password please use the link below  Forgotten your password?<br/><br/><br/>If you require further assistance please contact the Helpdesk on [HelpdeskEmail] [HelpdeskNumber]."
+        'ErrorMessage = Replace(ErrorMessage, "[errorcode]", "102")
+        'ErrorMessage = Replace(ErrorMessage, "[HelpdeskEmail]", "<a href='mailto:" & _Session("HelpdeskEmail").ToString & "'>" & _Session("HelpdeskEmail").ToString & "</a>")
+        'ErrorMessage = Replace(ErrorMessage, "[HelpdeskNumber]", _Session("HelpPhone").ToString)
+
+        Query = "INSERT INTO IPFailedLog (IPAddress, UserName, PassAttempt, DateTime, ReferringPage, Reset, Reason) VALUES ('" & IPAddress & "','" & UserName.Replace("'", "''") & "','" & SubmittedPassword & "','" & Now & "','" & Referrer & "',0,'" & FailureReason & "')"
+        Core.SQL.Functions.ExecuteNonQuery(Query, _ControlConnectionString)
+
+        Query = "SELECT COUNT(UID) AS COUNT FROM CurrentFailedIP WHERE (IPAddress = '" & IPAddress & "')"
+        Data = Core.SQL.Functions.Execute(Query, _ControlConnectionString)
+
+        If Data.Tables(0).Rows.Count > 0 Then
+            ' Populate a collection containing the Blacklist details
+            BlacklistDetails = GetCollectionFromDataset(Data)
+
+            If CInt(BlacklistDetails("Count")) > FAILED_IP_ATTEMPT_LIMIT Then
+                'add to blacklist
+                AddIPAddressToBlacklist(UserName, IPAddress)
+            End If
+        End If
+
+        Data.Dispose()
+        Data = Nothing
+
+    End Sub
+
+    Private Sub AddIPAddressToBlacklist(ByVal Username As String, ByVal IPAddress As String)
+        Dim InsertQuery As String = ""
+
+        _TraceContext.Write("Inside FMWeb.Functions.AddIPAddressToBlacklist")
+
+        InsertQuery = "INSERT INTO IPBlackList (IPAddress, StartDate, Allow) VALUES ('" & IPAddress & "','" & Now.ToString() & "',0)"
+        Core.SQL.Functions.ExecuteNonQuery(InsertQuery, _ControlConnectionString)
+
+        ' Send an email
+        'SendMail(IPAddress, "Blocked", Username, "")
+
+    End Sub
+
+    Private Sub DisableUser(ByVal UserName As String, ByVal LoginID As Int32, ByVal IPAddress As String)
+        Dim InsertQuery As String = ""
+
+        _TraceContext.Write("Inside FMWeb.Functions.DisableUser")
+
+        InsertQuery = "UPDATE UserLogin SET UserActive = 0 WHERE LoginName = '" & UserName & "' AND EndDate IS NULL"
+        Core.SQL.Functions.ExecuteNonQuery(InsertQuery, _ControlConnectionString)
+
+        ' Send an email
+        'SendMail(IPAddress, "User", UserName, LoginID)
+    End Sub
+
+    Private Function LoginUser(ByVal Account As LoginDTO, ByVal UserFullName As String, ByVal UserName As String, ByVal Messageid As Int32, ByVal DefaultPage As Boolean, ByVal IPAddress As String, ByVal Referrer As String) As Result
+        Dim RedirectTo As String = ""
+        Dim LoginResult As New Result
+        Dim ResponseString As String = ""
+
+        _TraceContext.Write("Inside FMWeb.Functions.LoginUser")
+
+        SetConnectionString()
+        SetSessionVariablesFromLogin(Account, UserName)
+
+        If ClientLockedOut(Account.ClientID) Then
+            _TraceContext.Write("This Client has been locked out")
+
+            LoginResult.Result = "Lockout.aspx"
+            LoginResult.ResultType = Result.ReturnType.String_URL
+            LoginResult.Success = False
+        Else
+            _TraceContext.Write("This Client has not been locked out")
+
+            ' Get some client parameters (FilterTypes etc)
+            LoadClientParameters(Account.ClientID)
+
+            ' Determine the most recent Billing Period
+            LoadLastBillingPeriodValues(Account.ClientID)
+
+            ' Update auditing and User table
+            UpdateLastLogonInfo(Account, IPAddress, Referrer)
+
+            If Account.FirstLogin Then
+                _TraceContext.Write("First Login for this user")
+
+                If Not DefaultPage Then
+                    _TraceContext.Write("Access granted: First time logging in")
+
+                    ResponseString = "<script language='JavaScript'>" & vbCrLf
+                    ResponseString &= "	<!--" & vbCrLf
+                    ResponseString &= "		window.open('html/firstLogin.aspx?ReturnUrl=" & Referrer & "','FirstLogin',''); self.close();" & vbCrLf
+                    ResponseString &= "	//-->" & vbCrLf
+                    ResponseString &= " </script>" & vbCrLf
+
+                    LoginResult.Result = ResponseString
+                    LoginResult.ResultType = Result.ReturnType.String_JavaScript
+                    LoginResult.Success = True
+                    System.Web.Security.FormsAuthentication.SetAuthCookie(Account.LoginName, False)
+                Else
+                    LoginResult.Result = "firstLogin.aspx"
+                    LoginResult.ResultType = Result.ReturnType.String_URL
+                    LoginResult.Success = True
+                    System.Web.Security.FormsAuthentication.SetAuthCookie(Account.LoginName, False)
+                End If
+
+            Else
+                If Account.ClientID = 0 And Account.UserRoleID < 6 Then
+                    _TraceContext.Write("Administrator/Developer Login")
+
+                    'LoginResult.Result = "SelectClient.aspx?usr=" & UserName & "&sHome=" & Account.Home
+                    'LoginResult.ResultType = Result.ReturnType.String_URL
+
+                    ResponseString = "<LINK id=stylesheet href='" & _Session("Style").ToString & "' type=text/css rel=stylesheet>"
+                    ResponseString &= "<script>" & vbCrLf
+                    ResponseString &= "	<!--" & vbCrLf
+                    'If Request("ReturnUrl") = "" Then
+                    ResponseString &= "		window.open('SelectClient.aspx?usr=" & Account.LoginName & "&sHome=" & "[URLENCODE_HOME]" & "','SelectClient','width=400 height=200');" & vbCrLf
+                    'Else
+                    'Response.Write("		window.open('SelectClient.aspx?usr=" & LoginName & "&ReturnUrl=" & Server.UrlEncode(Request("ReturnUrl")) & "','SelectClient','width=400 height=200');" & vbCrLf)
+                    'End If
+                    ResponseString &= "	//-->" & vbCrLf
+                    ResponseString &= "</script>" & vbCrLf
+                    ResponseString &= "<H1>Please Select a Client</H1>"
+                    'Response.End()
+
+                    LoginResult.Result = ResponseString
+                    LoginResult.ResultType = Result.ReturnType.String_JavaScript
+                    LoginResult.Success = True
+                Else
+                    _TraceContext.Write("Normal Login")
+                    LoginResult.ResultType = Result.ReturnType.Success
+                    LoginResult.Result = True
+                    LoginResult.Success = True
+                End If
+
+                System.Web.Security.FormsAuthentication.SetAuthCookie(Account.LoginName, False)
+
+                'If Request("ReturnUrl") = "" Then
+                '    If Account.Home = "" Then
+                '        If CInt(Session("UserRole")) = 9 Then
+                '            'PNR User
+                '            If Session("PersonalReporting").ToString() = "1" Then
+                '                RedirectTo = "/html/PersonalReport"
+                '            ElseIf Session("PersonalReporting").ToString() = "2" Then
+                '                RedirectTo = "/html/advPersonalReport"
+                '            ElseIf Session("PersonalReporting").ToString() = "3" Then
+                '                RedirectTo = "/html/AllocationReporting/cabListBills.aspx"
+                '            Else
+                '                'redirect to error page
+                '            End If
+                '        Else
+                '            RedirectTo = "html/default.aspx"
+                '        End If
+                '    Else
+                '        RedirectTo = Account.Home
+                '    End If
+                '    If Messageid > 0 Then
+                '        'Response.Write("<script>" & vbCrLf)
+                '        'Response.Write("	window.open('MessagesRead.aspx?ParentPage=" + Server.UrlEncode(RedirectTo) + "','Messages','width=500, height=400, scrollbars=yes');" & vbCrLf)
+                '        'Response.Write("</script>" & vbCrLf)
+
+                '        'Response.End()
+                '    Else
+                '        'Response.Redirect(RedirectTo)
+                '    End If
+
+                'Else
+                '    'RedirectTo = Request("ReturnUrl")
+                '    'Response.Write(" <script language='JavaScript'>" & vbCrLf)
+                '    'Response.Write(" if((typeof(window.opener)=='undefined') || ((window.opener)==null))" & vbCrLf)
+                '    'Response.Write(" {" & vbCrLf)
+                '    'Response.Write(" self.location='" & RedirectTo & "';" & vbCrLf)
+                '    'Response.Write(" }" & vbCrLf)
+                '    'Response.Write(" if((typeof(window.opener)!='undefined') && ((window.opener)!=null))" & vbCrLf)
+                '    'Response.Write(" {" & vbCrLf)
+                '    'Response.Write(" window.opener.__doPostBack('','');self.close();" & vbCrLf)
+                '    'Response.Write(" }" & vbCrLf)
+                '    'Response.Write(" </script>" & vbCrLf)
+                'End If
+
+                LoginResult.ResultType = Result.ReturnType.String_URL
+                LoginResult.Result = RedirectTo
+                LoginResult.Success = True
+                _TraceContext.Write("Redirecting to " & RedirectTo)
+
+            End If
+        End If
+
+        _TraceContext.Write("Leaving FMWeb.Functions.LoginUser")
+
+        Return LoginResult
+
+    End Function
+
+    'Private Sub SetSession()
+
+    '    _TraceContext.Write("Inside FMWeb.Functions.SetSession")
+
+    '    If Not HttpContext.Current Is Nothing Then
+    '        _Session = HttpContext.Current.Session
+    '    Else
+    '        _Session = Nothing
+    '    End If
+
+    'End Sub
+
+    Private Function GetValueFromCollection(ByVal Name As String, ByVal Collection As Collections.Specialized.NameValueCollection) As String ' Not shared
+        _TraceContext.Write("Inside FMWeb.Functions.GetValueFromCollection")
+
+        Try
+            Return Collection(Name)
+        Catch ex As Exception
+            Return ""
+        End Try
+    End Function
+
+    Private Function IntegerFromString(ByVal InputString As String) As Int32
+        Dim Result As Int32 = 0
+
+        If InputString Is Nothing Then
+            Result = 0
+        Else
+            If IsNumeric(InputString) Then
+                Result = CInt(InputString)
+
+            Else
+                Result = 0
+
+            End If
+        End If
+
+        Return Result
+
+    End Function
+
+    Private Sub SetConnectionString()
+        If HttpContext.Current.Session("OperationalDB").ToString <> "" Then
+            If _ConnectionString = "" Then
+                _ConnectionString = HttpContext.Current.Session("OperationalDB").ToString
+            End If
+        End If
+
+        _TraceContext.Write("Connection String", _ConnectionString)
+        _TraceContext.Write("Control Connection String", _ControlConnectionString)
+
+    End Sub
+
+    Private Sub SetSessionVariablesFromLogin(ByVal Account As LoginDTO, ByVal Username As String)
+        If Not _Session Is Nothing Then
+            _Session("ClientID") = Account.ClientID.ToString
+            _Session("UserID") = Account.UserID.ToString
+            _Session("UserRole") = Account.UserRoleID.ToString
+            _Session("UsersName") = Username.ToString
+            _Session("LoginID") = Account.LoginID.ToString
+            _Session("_MarkupSecurity") = Account.MarkupSecurity.ToString ' The underscore is from the original project
+            _Session("_MarkupDisplay") = Account.MarkupDisplay.ToString   ' The underscore is from the original project
+
+            _TraceContext.Write("Session variables now set")
+        Else
+            _TraceContext.Write("Session is undefined!")
+        End If
+    End Sub
+
+    Private Sub UpdateLastLogonInfo(ByVal Account As LoginDTO, ByVal IPAddress As String, ByVal Referrer As String)
+        Dim Query As String = ""
+
+        _TraceContext.Write("Updating UserLogin table")
+        Query = "UPDATE UserLogin SET LastLogin = GetDate() WHERE LoginID = '" & Account.LoginID.ToString & "' AND EndDate IS NULL"
+        Core.SQL.Functions.ExecuteNonQuery(Query, _ControlConnectionString)
+
+        _TraceContext.Write("Updating LoginLog table")
+        Query = "INSERT INTO LoginLog (UserID, LoginID, SiteID, ClientID, OrgUnitID, LoginDate, IPAddress, ReferringPage) VALUES('" & Account.UserID.ToString & "', '" & Account.LoginID & "', " & Account.SiteID.ToString & ", " & Account.ClientID & "," & Account.OrgUnitID.ToString & " ,GetDate(),'" & IPAddress & "','" & Referrer & "')"
+        Core.SQL.Functions.ExecuteNonQuery(Query, _ControlConnectionString)
+    End Sub
+
+#End Region
+
+End Class

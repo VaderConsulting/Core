@@ -1,0 +1,523 @@
+Imports Core
+Imports Core.FleetManager.Definitions
+Imports System.Web
+Imports System.Web.HttpRequest
+Imports System.Configuration
+
+Public Class Form1
+    Inherits System.Windows.Forms.Form
+
+#Region " Windows Form Designer generated code "
+
+    Public Sub New()
+        MyBase.New()
+
+        'This call is required by the Windows Form Designer.
+        InitializeComponent()
+
+        'Add any initialization after the InitializeComponent() call
+
+    End Sub
+
+    'Form overrides dispose to clean up the component list.
+    Protected Overloads Overrides Sub Dispose(ByVal disposing As Boolean)
+        If disposing Then
+            If Not (components Is Nothing) Then
+                components.Dispose()
+            End If
+        End If
+        MyBase.Dispose(disposing)
+    End Sub
+
+    'Required by the Windows Form Designer
+    Private components As System.ComponentModel.IContainer
+
+    'NOTE: The following procedure is required by the Windows Form Designer
+    'It can be modified using the Windows Form Designer.  
+    'Do not modify it using the code editor.
+    Friend WithEvents btnStart As System.Windows.Forms.Button
+    Friend WithEvents txtCounter As System.Windows.Forms.TextBox
+    Friend WithEvents btnStatusEmail As System.Windows.Forms.Button
+    Friend WithEvents btnLoadFMDetails As System.Windows.Forms.Button
+    Friend WithEvents txtUsername As System.Windows.Forms.TextBox
+    <System.Diagnostics.DebuggerStepThrough()> Private Sub InitializeComponent()
+        Me.btnStart = New System.Windows.Forms.Button
+        Me.txtCounter = New System.Windows.Forms.TextBox
+        Me.btnStatusEmail = New System.Windows.Forms.Button
+        Me.btnLoadFMDetails = New System.Windows.Forms.Button
+        Me.txtUsername = New System.Windows.Forms.TextBox
+        Me.SuspendLayout()
+        '
+        'btnStart
+        '
+        Me.btnStart.Location = New System.Drawing.Point(8, 32)
+        Me.btnStart.Name = "btnStart"
+        Me.btnStart.TabIndex = 0
+        Me.btnStart.Text = "Start"
+        '
+        'txtCounter
+        '
+        Me.txtCounter.Location = New System.Drawing.Point(8, 8)
+        Me.txtCounter.Name = "txtCounter"
+        Me.txtCounter.Size = New System.Drawing.Size(72, 20)
+        Me.txtCounter.TabIndex = 1
+        Me.txtCounter.Text = "1"
+        '
+        'btnStatusEmail
+        '
+        Me.btnStatusEmail.Location = New System.Drawing.Point(184, 32)
+        Me.btnStatusEmail.Name = "btnStatusEmail"
+        Me.btnStatusEmail.Size = New System.Drawing.Size(88, 23)
+        Me.btnStatusEmail.TabIndex = 2
+        Me.btnStatusEmail.Text = "Status Email"
+        '
+        'btnLoadFMDetails
+        '
+        Me.btnLoadFMDetails.Location = New System.Drawing.Point(8, 160)
+        Me.btnLoadFMDetails.Name = "btnLoadFMDetails"
+        Me.btnLoadFMDetails.Size = New System.Drawing.Size(104, 23)
+        Me.btnLoadFMDetails.TabIndex = 3
+        Me.btnLoadFMDetails.Text = "Load FM Details"
+        '
+        'txtUsername
+        '
+        Me.txtUsername.Location = New System.Drawing.Point(8, 136)
+        Me.txtUsername.Name = "txtUsername"
+        Me.txtUsername.TabIndex = 4
+        Me.txtUsername.Text = "Username"
+        '
+        'Form1
+        '
+        Me.AutoScaleBaseSize = New System.Drawing.Size(5, 13)
+        Me.ClientSize = New System.Drawing.Size(284, 264)
+        Me.Controls.Add(Me.txtUsername)
+        Me.Controls.Add(Me.btnLoadFMDetails)
+        Me.Controls.Add(Me.btnStatusEmail)
+        Me.Controls.Add(Me.txtCounter)
+        Me.Controls.Add(Me.btnStart)
+        Me.Name = "Form1"
+        Me.Text = "Form1"
+        Me.ResumeLayout(False)
+
+    End Sub
+
+#End Region
+
+    Private _Common As Core.Common.Singleton
+
+    Private Sub Form1_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+
+        _Common = Core.Common.Singleton.GetSingleton
+
+        _Common.Logging.LogLevel = Logging.Functions.LOGGING_LEVEL.DEBUGGING
+
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.AllUsersApplicationData)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.CurrentUserApplicationData)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.Desktop)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.MyDocuments)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.MyMusic)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.MyPictures)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.ProgramFiles)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.Programs)
+        'Debug.WriteLine(My.Computer.FileSystem.SpecialDirectories.Temp)
+
+        'Debug.WriteLine(My.Computer.Info.OSFullName)
+
+        Dim ConnectionString As String = ""
+        Dim Query As String = ""
+        Dim Data As DataSet = Nothing
+
+        Query = "SELECT * FROM Users"
+        Data = Core.SQL.Functions.Execute(Query, ConnectionString)
+
+    End Sub
+
+    Private Sub btnStart_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnStart.Click
+        Dim ControlConnectionString As String = ""
+        Dim SiteID As Integer = 0
+        Dim ClientID As Integer = 0
+        Dim Database As Core.FleetManager.FMDatabase
+
+        ' To use FMDatabase...
+        SiteID = 1
+        ClientID = 1
+        ControlConnectionString = "REDACTED"
+        Database = New Core.FleetManager.FMDatabase(ControlConnectionString, SiteID)
+
+        ' A simple test to see if we can read FM Data...
+        Dim ds As DataSet = Database.Execute("Select * From Users WHERE ClientID = 1", FleetManagerDatabaseType.Data)
+
+        ' A FMConnection is necessary when working with FM objects
+        ' To initiate the FMConnection...
+        Dim Connection As New Core.FleetManager.FMConnection(ClientID, Database)
+
+        ' To get a handle to an Org Unit...
+        ' Create the object
+        Dim ou As Core.FleetManager.OrganisationalUnit
+
+        ' Now depending on how you want to use it, use one of the following:
+        ou = New Core.FleetManager.OrganisationalUnit
+        ou = New Core.FleetManager.OrganisationalUnit(ClientID)
+        ou = New Core.FleetManager.OrganisationalUnit(Connection)
+        ou = New Core.FleetManager.OrganisationalUnit(ClientID, Connection)
+
+        ' If you have specified a ClientID and a Connection, you can get a handle to your Org Unit.
+        ' When loading an object, you tell the library what type of load to perform.  
+
+        ' Choices are stored in the LoadBehaviour Enum:
+        ' FleetManager.Definitions.DefaultBehaviour.CreateNew()
+        ' FleetManager.Definitions.DefaultBehaviour.CreateOrModify()
+        ' FleetManager.Definitions.DefaultBehaviour.FailOnNotExist()
+        ' FleetManager.Definitions.DefaultBehaviour.LoadOnly()
+        ' FleetManager.Definitions.DefaultBehaviour.LoadOrCreate()
+        ' FleetManager.Definitions.DefaultBehaviour.ModifyOnly()
+
+        ' What Org Unit do we want to load?  If you want to load an OU off the root, you need to specify at least a Name
+        ou.Name = "Corporate Affairs"
+
+        ' To perform a load only (ie no creation performed if it does not exist), use LoadOnly
+        ou.Load(DefaultBehaviour.LoadOnly)
+
+        ' We have now loaded it, and can display other properties of the Org Unit
+        Trace.WriteLine(ou.ID.ToString)
+
+        ' Clear the results of our previous search
+        ou = Nothing
+
+        ' Now if you want to load an OU that is one or more layers down, you need to give it a Parent.
+        ' This is necessary because there may be multiple org units with the same name
+
+        Dim ParentOU As Core.FleetManager.OrganisationalUnit
+
+        ' Connect
+        ParentOU = New Core.FleetManager.OrganisationalUnit(ClientID, Connection)
+
+        ' Get a parent that is off the root
+        ParentOU.Name = "Marketing & Sales"
+
+        ' Find this OU
+        ParentOU.Load(DefaultBehaviour.LoadOnly)
+
+        ' Now define the ou we are interested in
+        ou = New Core.FleetManager.OrganisationalUnit(ParentOU.ClientID, ParentOU.Connection)
+        ou.Name = "Sales"
+        ou.ParentOrganisationalUnitID = ParentOU.ID
+
+        ou.Load(FleetManager.Definitions.DefaultBehaviour.LoadOnly)
+
+        ' We have now loaded it, and can display other properties of the Org Unit
+        Trace.WriteLine(ou.ID.ToString)
+
+        ' Create a phone
+        Dim p As New FleetManager.Phone(ou.ClientID, ou.Connection)
+
+        ' Set the Phone ID
+        p.ID = 703
+
+        ' Load the other propeties
+        p.Load(DefaultBehaviour.LoadOnly)
+
+        ' We have now loaded it, and can display other properties of the Phone
+        Trace.WriteLine(p.Number)
+
+        Exit Sub
+
+        _Common.Logging.WriteInformationEvent("Pausing 1...")
+        Core.Common.Functions.PauseSeconds2(1, True)
+        _Common.Logging.WriteInformationEvent("Back")
+
+        _Common.Logging.WriteInformationEvent("Pausing 5...")
+        Core.Common.Functions.PauseSeconds2(5, True)
+        _Common.Logging.WriteInformationEvent("Back")
+
+        _Common.Logging.WriteInformationEvent("Pausing 10...")
+        Core.Common.Functions.PauseSeconds2(10, True)
+        _Common.Logging.WriteInformationEvent("Back")
+
+        For Counter As Int32 = 1 To CInt(txtCounter.Text)
+            ' Create our new Email Message
+            Dim EmailMessage As New Email.Message
+
+            ' Mail Server and From Address are required
+            '
+            EmailMessage.MailServer = "mail.stratatel.com.au"
+            '
+            ' When you specify an Email Address to send to or from, you cannot provide a string - you must provide an EmailAddress.
+            ' The provided string is always checked if it is a valid email address.  If it is not, an ApplicationException will be raised.
+            '
+            ' For example if you perform the following, when the application runs, this line will create a runtime error:
+            ' EmailMessage.FromAddress = "blergh"
+            '
+            ' The solution is of course to ensure only a valid address is specified, or if the address is specified at Runtime,
+            ' wrap only this code in a Try-Catch.
+            '
+            ' For example (using a fictitious GetEmailAddressString Function):
+            ' TheEmailAddress = GetEmailAddressString() ' <--- retrieves a string representing an email address from the database
+            '
+            ' Try
+            '     EmailMessage.FromAddress = New EmailAddress(TheEmailAddress)
+            ' Catch ex as ApplicationException
+            '     LogMessage("Invalid email address specified:" & TheEmailAddress)
+            ' Finally
+            '
+            ' ===============================================================================================================
+            '
+            ' To specify an EmailAddress, you can either pre-create the variable, or you can perform an in-line declaration
+            ' For example, the following are both valid.
+            ' Example 1:
+            ' Dim FromAddress as New EmailAddress("redacted@example.com")
+            '
+            ' EmailMessage.FromAddress = FromAddress
+            '
+            ' Example 2:
+            ' EmailMessage.FromAddress = New Email.Address("redacted@example.com")
+            '
+            EmailMessage.FromAddress = New Email.Address("redacted@example.com")
+            '
+            ' ===============================================================================================================
+            '
+            ' Some parameters are optional.
+            ' For example, you do not need a To Address if you have either a CC Address or a BCC Address.
+            ' However, you must have at least one of either a CC, BCC or To address specified.
+            '
+            EmailMessage.ToAddresses.Add(New Email.Address("redacted@example.com"))
+            'EmailMessage.CCAddresses.Add(New Email.Address("redacted@example.com"))
+            'EmailMessage.BCCAddresses.Add(New Email.Address("redacted@example.com"))
+            '
+            ' ===============================================================================================================
+            ' Multiple addresses can be specified (except for the From Address)
+            'EmailMessage.CCAddresses.Add(New Email.Address("redacted@example.com"))
+            'EmailMessage.CCAddresses.Add(New Email.Address("redacted@example.com"))
+            '
+            ' ===============================================================================================================
+            '
+            ' Attachments are optional
+            ' When an Attachment is specified, the existance of the file is checked before it is added.  An exception may be
+            ' raised if the appropriate Option has been set.
+            '
+            'EmailMessage.Attachments.Add("c:\temp\attachment.htm")
+            '
+            ' ===============================================================================================================
+            '
+            ' There are other options that can be set against the message to control various aspects
+            ' For each of these, the default value is False.
+            '
+            ' Dim EmailOptions As New Email.Options
+            '
+            ' EmailOptions.AttachmentCouldNotBeAddedIsException = False
+            ' EmailOptions.AttachmentNotFoundIsException = False
+            ' EmailOptions.EmptyAddresseesIsException = False
+            ' EmailOptions.NoSubjectIsException = False
+            ' EmailOptions.SendFailureIsException = False
+            ' EmailMessage.MailOptions = EmailOptions
+            '
+            ' ===============================================================================================================
+
+            EmailMessage.MailSubject = "Test email"
+            EmailMessage.Format = Email.Message.MailFormat.Text
+            EmailMessage.MailBody = "Test email number " & Counter.ToString & " of " & txtCounter.Text
+
+            Dim SendResult As Boolean = False
+
+            Try
+                SendResult = EmailMessage.Send()
+            Catch ex As ApplicationException
+                ' Our exceptions will be caught here
+                Trace.WriteLine("An application specific error has occurred.  The Error was " & ex.ToString)
+                MsgBox(ex.ToString)
+                Select Case ex.Message
+                    Case "At least one of To, CC or BCC Address must be specified"
+                        ' Ensure you have at least one of these
+                    Case "Could not add Attachment"
+                        ' There was an error adding the attachment.  Security?
+                        ' Check the InnerException property for further information
+                    Case "Attachment not found"
+                        ' The filename specified could not be found
+                    Case "No Subject specified"
+                        ' No subject (Add one)
+                    Case "Failed to send email"
+                        ' A number of attempts were made to send the email, but it still could not be sent
+                        ' Check the InnerException property for further information
+                    Case "No From Address specified"
+                        ' No From Address (Add one)
+                    Case "No Mail Server specified"
+                        ' No Mail Server (Specify it)
+                    Case "Mail object not initialised"
+                        ' The Mail object could not be initialised.
+                End Select
+
+            Catch ex As Exception
+                ' Generic exceptions will be caught here
+                Trace.WriteLine("An unexpected error has occurred.  The error was: " & ex.ToString)
+            End Try
+
+            ' Finally, clean up
+            EmailMessage.Dispose()
+        Next
+
+        Environment.Exit(0)
+
+    End Sub
+
+    Private Sub btnStatusEmail_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnStatusEmail.Click
+        Dim Email As New Core.StatusEmail.Message
+        Dim EmailTo As New Email.Address("redacted@example.com")
+        Dim EmailFrom As New Email.Address("redacted@example.com")
+
+        Email.MailServer = "mail.stratatel.com.au"
+        Email.FromAddress.SetEmailAddress(EmailFrom.Value, True)
+        Email.ToAddresses.Add(EmailTo.Value)
+
+        'Email.CCAddresses.Add(EmailTo.Value)
+        'Email.CCAddresses.Add("redacted@example.com")
+
+        'Email.BCCAddresses.Add(EmailTo.Value)
+        'Email.BCCAddresses.Add("redacted@example.com")
+
+        Email.MailSubject = "This is the Mail Subject"
+
+        Email.ClientName = "The Client Name goes here"
+        Email.StatusMessage = "The Email Status Message goes here"
+
+        Email.Title = "The Report Title goes here"
+        'Email.StatusTotalRowIncluded = False
+        'Email.ExceptionTotalRowIncluded = False
+
+        ' ===============================================
+        Dim Row As DataRow
+
+        ' Status 1
+        Dim ResultsTable1 As New DataTable("Messages 1")
+
+        ResultsTable1.Columns.Add(New DataColumn("Column 1"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 2"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 3"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 4"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 5"))
+
+        Row = ResultsTable1.NewRow
+
+        Row(0) = "Value 1"
+        Row(1) = "Value 2"
+        Row(2) = "Value 3"
+        Row(3) = "Value 4"
+        Row(4) = "Value 5"
+        ResultsTable1.Rows.Add(Row)
+
+        Row = Nothing
+
+        Row = ResultsTable1.NewRow
+
+        Row(0) = "Total 1"
+        Row(1) = "Total 2"
+        Row(2) = "Total 3"
+        Row(3) = "Total 4"
+        Row(4) = "Total 5"
+        ResultsTable1.Rows.Add(Row)
+
+        'Email.StatusDataSet.Tables(0).TableName = "Messages 1"
+
+        Email.AddStatusRow(0, Row)
+        ' ===============================================
+        ' Status 2
+        Dim ResultsTable2 As New DataTable("Messages 2")
+
+        ResultsTable2.Columns.Add(New DataColumn("Column 1"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 2"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 3"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 4"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 5"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 6"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 7"))
+
+        Row = ResultsTable2.NewRow
+
+        Row(0) = "Value 1"
+        Row(1) = "Value 2"
+        Row(2) = "Value 3"
+        Row(3) = "Value 4"
+        Row(4) = "Value 5"
+        Row(5) = "Value 6"
+        Row(6) = "Value 7"
+        ResultsTable2.Rows.Add(Row)
+
+        Row = Nothing
+
+        Row = ResultsTable2.NewRow
+
+        Row(0) = "Total 1"
+        Row(1) = "Total 2"
+        Row(2) = "Total 3"
+        Row(3) = "Total 4"
+        Row(4) = "Total 5"
+        Row(5) = "Total 6"
+        Row(6) = "Total 7"
+        ResultsTable2.Rows.Add(Row)
+
+        'Email.AddStatusTable("Messages 2")
+        'Email.StatusDataSet.Tables(1).TableName = "Messages 2"
+
+        Email.AddStatusRow(1, Row)
+        ' ===============================================
+        ' Exceptions
+        Dim ExceptionTable As New DataTable("Exceptions")
+
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 1"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 2"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 3"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 4"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 5"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 6"))
+
+        Row = ExceptionTable.NewRow
+
+        Row(0) = "Exception 1"
+        Row(1) = "Exception 2"
+        Row(2) = "Exception 3"
+        Row(3) = "Exception 4"
+        Row(4) = "Exception 5"
+        Row(5) = "Exception 6"
+
+        ExceptionTable.Rows.Add(Row)
+
+        Row = ExceptionTable.NewRow
+
+        Row(0) = "Total 1"
+        Row(1) = "Total 2"
+        Row(2) = "Total 3"
+        Row(3) = "Total 4"
+        Row(4) = "Total 5"
+        Row(5) = "Total 6"
+
+        ExceptionTable.Rows.Add(Row)
+
+        Email.AddExceptionRow(Row)
+        ' ===============================================
+
+        Email.Status = StatusEmail.Message.EmailStatus.SuccessWithExceptions
+        Email.StatusTotalRowIncluded = False
+        Email.ExceptionTotalRowIncluded = False
+        Email.AddTableSeperator = True
+        Email.Send()
+
+
+    End Sub
+
+    Private Sub btnLoadFMDetails_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnLoadFMDetails.Click
+        Dim Result As Collections.Specialized.NameValueCollection
+        Dim ConnectionString As String = "Server=203.161.116.150;Database=stratatelcontrol_test;User ID=REDACTED;Password=REDACTED;Max Pool Size=5000;"
+        'Dim FMWebObject As New FMWeb.Functions(ConnectionString, Nothing)
+
+        ' Alternative way to set the Connection string:
+        ' FMWebObject.ConnectionString = ConnectionString
+
+        'Result = Core.FMWeb.Functions.LoadLoginDetails(txtUsername.Text, 1, ConnectionString)
+
+        'FMWebObject.SetSessionVariables(System.Web.HttpContext.Current.Session)
+
+        ' Result now contains each field from the UserLogin table for the selected Username
+        Trace.WriteLine("LoginName=" & Result("LoginName"))
+        Trace.WriteLine("Password="REDACTED"Password"))
+    End Sub
+
+End Class

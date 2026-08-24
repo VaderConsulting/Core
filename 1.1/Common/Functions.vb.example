@@ -1,0 +1,390 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.0.0.1    27 May 11    DR          Enhancement   Original release
+' 1.0.1.2    31 May 11    DR          Enhancement   Added PauseSeconds2
+' 1.0.2.3    01 Jun 11    DR          Enhancement   Allow Email Address aliases
+' 1.0.3.4    03 Jun 11    DR          BugFix        Fixed issue where the Email Address matching RegEx was too complex
+'
+#End Region
+
+Imports System.IO
+Imports System.Reflection
+Imports System.Windows.Forms
+Imports System.Runtime.Serialization ' For Serialization and Deserialization
+
+Public Class Functions
+
+#Region " Private Variables "
+
+    Private Shared _CommandLineArguments() As String = {}
+    Private Shared _DebugMode As Boolean = False
+#End Region
+
+#Region " Constructor "
+
+    Public Sub New()
+        DoStartup()
+    End Sub
+
+#End Region
+
+#Region " Properties "
+
+    Public Shared ReadOnly Property CommandLineArguments() As String()
+        Get
+            Try
+                If Microsoft.VisualBasic.Command.Length > 0 Then
+
+                    If Microsoft.VisualBasic.Command.IndexOf("-") > 0 Then
+                        _CommandLineArguments = Command.Split("-")
+                    Else
+                        _CommandLineArguments = Command.Split(" ")
+                    End If
+
+                    For Each Argument As String In _CommandLineArguments
+                        If Argument.ToLower = "debug" Then
+                            _DebugMode = True
+                        End If
+                    Next
+                End If
+            Catch
+            End Try
+            Return _CommandLineArguments
+        End Get
+    End Property
+
+    Public Shared Property DebugMode() As Boolean
+        Get
+            Return _DebugMode
+        End Get
+        Set(ByVal value As Boolean)
+            _DebugMode = value
+        End Set
+    End Property
+
+    Public Shared ReadOnly Property CommandLineInitiated() As Boolean
+        Get
+            Return CBool(_CommandLineArguments.Length > 0)
+        End Get
+    End Property
+
+#End Region
+
+#Region " Public Methods "
+
+    ''' <summary>
+    ''' Recursively create a folder structure
+    ''' </summary>
+    ''' <param name="FullFolderPath"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Shared Function CreateFolder(ByVal FullFolderPath As String) As Boolean
+        Dim DirectoryLevel As Int32 = 0
+
+        Dim Folders() As String = FullFolderPath.Split(CChar("\"))
+
+        Dim DirectoryPath As String = ""
+        For DirectoryLevel = 0 To UBound(Folders)
+            DirectoryPath &= Folders(DirectoryLevel) & "\"
+
+            If Not Directory.Exists(DirectoryPath) Then Directory.CreateDirectory(DirectoryPath)
+        Next
+
+    End Function
+
+    ''' <summary>
+    ''' Write a trace message to the screen
+    ''' </summary>
+    ''' <param name="Message"></param>
+    ''' <remarks></remarks>
+    Public Shared Sub WriteTraceMessage(ByVal Message As String)
+        Trace.WriteLine("Error!: " & Message)
+    End Sub
+
+    ''' <summary>
+    ''' Converts a GUID to a string
+    ''' </summary>
+    ''' <param name="GUIDString"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Shared Function ConvertGUIDToString(ByRef GUIDString() As Byte) As String
+        Dim ReturnString As String = ""
+
+        Try
+            For Count As Int32 = 0 To GUIDString.Length - 1
+                ReturnString = ReturnString + Hex(GUIDString(Count))
+            Next
+        Catch ex As Exception
+        End Try
+        Return ReturnString
+    End Function
+
+    ''' <summary>
+    ''' Removes non printable characters
+    ''' </summary>
+    ''' <param name="InputData"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Shared Function RemoveNonPrintableCharacters(ByVal InputData As String) As String
+        Dim OutputData As String = Trim(InputData)
+
+        ' Everything less than Chr(32)
+        For lp As Integer = 0 To 31
+            OutputData = OutputData.Replace(Chr(lp), "")
+        Next
+
+        ' Everything greater than 127
+        For lp As Integer = 128 To 255
+            OutputData = OutputData.Replace(Chr(lp), "")
+        Next
+
+        Return OutputData
+    End Function
+
+    ''' <summary>
+    ''' Replace tags in the given string, using the current date
+    ''' </summary>
+    ''' <param name="InputString">The string to search</param>
+    ''' <param name="ConvertToUppercase">The string to replace</param>
+    ''' <returns>String containing all replaced tags</returns>
+    ''' <remarks>Based on ReplaceEnvironmentVariables from Utility</remarks>
+    Public Shared Function ReplaceTags(ByVal InputString As String, Optional ByVal ConvertToUppercase As Boolean = True) As String
+        Dim OutputString As String = InputString
+
+        OutputString = ReplaceTags(OutputString, Date.Now, ConvertToUppercase)
+
+        Return OutputString
+    End Function
+
+    ''' <summary>
+    ''' Perform ReplaceTags, but with an added Custom string to replace
+    ''' </summary>
+    ''' <param name="InputString">The string to search</param>
+    ''' <param name="CustomString">The string to replace</param>
+    ''' <returns>String containing all replaced tags</returns>
+    ''' <remarks>Based on ReplaceEnvironmentVariables from Utility</remarks>
+    Public Shared Function ReplaceTags(ByVal InputString As String, ByVal CustomString As String, Optional ByVal ConvertToUppercase As Boolean = True) As String
+        Dim OutputString As String = InputString
+
+        OutputString = OutputString.Replace("#CUSTOMSTRING#", CustomString)
+
+        OutputString = ReplaceTags(OutputString, ConvertToUppercase)
+
+        Return OutputString
+    End Function
+
+    ''' <summary>
+    ''' Perform ReplaceTags, but with an added Custom string to replace
+    ''' </summary>
+    ''' <param name="InputString">The string to search</param>
+    ''' <param name="CustomTag">The string to replace</param>
+    ''' <param name="ReplacementValue">The string to replace with</param>
+    ''' <returns>String containing all replaced tags</returns>
+    ''' <remarks>Based on ReplaceEnvironmentVariables from Utility.  Do not supply the hashes within the CustomTag.</remarks>
+    Public Shared Function ReplaceTags(ByVal InputString As String, ByVal CustomTag As String, ByVal ReplacementValue As String, Optional ByVal ConvertToUppercase As Boolean = True) As String
+        Dim OutputString As String = InputString
+
+        OutputString = OutputString.Replace("#" & CustomTag & "#", ReplacementValue)
+
+        OutputString = ReplaceTags(OutputString, ConvertToUppercase)
+
+        Return OutputString
+    End Function
+
+
+    ''' <summary>
+    ''' Replace tags in the given string, using the provided date
+    ''' </summary>
+    ''' <param name="InputString">The string to search</param>
+    ''' <param name="ConvertToUppercase">The string to replace</param>
+    ''' <returns>String containing all replaced tags</returns>
+    ''' <remarks>Based on ReplaceEnvironmentVariables from Utility</remarks>
+    Public Shared Function ReplaceTags(ByVal InputString As String, ByVal InputDate As Date, ByVal ConvertToUppercase As Boolean) As String
+        Dim OutputString As String = InputString
+        Dim QuarterNumber As Int16 = 1
+        Dim TaxQuarterNumber As Int16 = 1
+        Dim PadCharacter As Char = CChar("0")
+
+        ' This part allows us to pass through variables to other utilities\applications
+        'OutputString = OutputString.Replace("##", "!!")
+
+        Dim NewGUID As System.Guid =REDACTED
+
+        OutputString = OutputString.Replace("#GUID#", NewGUID.ToString)
+        OutputString = OutputString.Replace("#HOUR-1#", DateAdd(DateInterval.Hour, -1, InputDate).Hour.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#HOUR#", InputDate.Hour.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#MINUTE-1#", DateAdd(DateInterval.Minute, -1, InputDate).Minute.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#MINUTE#", InputDate.Minute.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#SECOND#", InputDate.Second.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#DAY-1#", DateAdd(DateInterval.Day, -1, InputDate).Day.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#DAY#", InputDate.Day.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#DATE#", InputDate.Day.ToString.PadLeft(2, PadCharacter) & InputDate.Month.ToString.PadLeft(2, PadCharacter) & InputDate.Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#DATE2#", InputDate.Day.ToString.PadLeft(2, PadCharacter) & InputDate.Month.ToString.PadLeft(2, PadCharacter) & InputDate.Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#DATE4#", InputDate.Day.ToString.PadLeft(2, PadCharacter) & InputDate.Month.ToString.PadLeft(2, PadCharacter) & InputDate.Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#DATE-1MONTH#", DateAdd(DateInterval.Month, -1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, -1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#DATE2-1MONTH#", DateAdd(DateInterval.Month, -1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, -1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, -1, InputDate).Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#DATE4-1MONTH#", DateAdd(DateInterval.Month, -1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, -1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#DATE+1MONTH#", DateAdd(DateInterval.Month, 1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, 1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, 1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#DATE2+1MONTH#", DateAdd(DateInterval.Month, 1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, 1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, 1, InputDate).Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#DATE4+1MONTH#", DateAdd(DateInterval.Month, 1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, 1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Month, 1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#TODAY#", InputDate.Day.ToString.PadLeft(2, PadCharacter) & InputDate.Month.ToString.PadLeft(2, PadCharacter) & InputDate.Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#TODAY2#", InputDate.Day.ToString.PadLeft(2, PadCharacter) & InputDate.Month.ToString.PadLeft(2, PadCharacter) & InputDate.Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#TODAY4#", InputDate.Day.ToString.PadLeft(2, PadCharacter) & InputDate.Month.ToString.PadLeft(2, PadCharacter) & InputDate.Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#TOMORROW#", DateAdd(DateInterval.Day, 1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, 1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, 1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#TOMORROW2#", DateAdd(DateInterval.Day, 1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, 1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, 1, InputDate).Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#TOMORROW4#", DateAdd(DateInterval.Day, 1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, 1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, 1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YESTERDAY#", DateAdd(DateInterval.Day, -1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, -1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YESTERDAY2#", DateAdd(DateInterval.Day, -1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, -1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, -1, InputDate).Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#YESTERDAY4#", DateAdd(DateInterval.Day, -1, InputDate).Day.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, -1, InputDate).Month.ToString.PadLeft(2, PadCharacter) & DateAdd(DateInterval.Day, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#MONTH-1#", DateAdd(DateInterval.Month, -1, InputDate).Month.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#MONTHNAME-1#", DateAdd(DateInterval.Month, -1, InputDate).ToString("MMMM"))
+        OutputString = OutputString.Replace("#MONTHNAME#", InputDate.ToString("MMMM"))
+        OutputString = OutputString.Replace("#MONTH#", InputDate.Month.ToString.PadLeft(2, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR-1#", DateAdd(DateInterval.Year, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR#", InputDate.Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR4-1#", DateAdd(DateInterval.Year, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR4#", InputDate.Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR2-1#", DateAdd(DateInterval.Year, -1, InputDate).Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#YEAR2#", InputDate.Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#YEAR-1MONTH#", DateAdd(DateInterval.Month, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR2-1MONTH#", DateAdd(DateInterval.Month, -1, InputDate).Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#YEAR4-1MONTH#", DateAdd(DateInterval.Month, -1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR+1MONTH#", DateAdd(DateInterval.Month, 1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+        OutputString = OutputString.Replace("#YEAR2+1MONTH#", DateAdd(DateInterval.Month, 1, InputDate).Year.ToString.Substring(2, 2))
+        OutputString = OutputString.Replace("#YEAR4+1MONTH#", DateAdd(DateInterval.Month, 1, InputDate).Year.ToString.PadLeft(4, PadCharacter))
+
+        Select Case InputDate.Month
+            Case 1, 2, 3
+                QuarterNumber = 1
+            Case 4, 5, 6
+                QuarterNumber = 2
+            Case 7, 8, 9
+                QuarterNumber = 3
+            Case 10, 11, 12
+                QuarterNumber = 4
+        End Select
+        OutputString = OutputString.Replace("#QUARTER#", QuarterNumber.ToString)
+        OutputString = OutputString.Replace("#QUARTER2#", QuarterNumber.ToString).PadLeft(2, PadCharacter)
+
+        Select Case InputDate.Month
+            Case 7, 8, 9
+                TaxQuarterNumber = 1
+            Case 10, 11, 12
+                TaxQuarterNumber = 2
+            Case 1, 2, 3
+                TaxQuarterNumber = 3
+            Case 4, 5, 6
+                TaxQuarterNumber = 4
+        End Select
+        OutputString = OutputString.Replace("#TAXQUARTER#", TaxQuarterNumber.ToString)
+        OutputString = OutputString.Replace("#TAXQUARTER2#", TaxQuarterNumber.ToString).PadLeft(2, PadCharacter)
+
+        If ConvertToUppercase Then OutputString = OutputString.ToUpper
+
+        'OutputString = OutputString.Replace("!!", "#")
+
+        Return OutputString
+    End Function
+
+    ''' <summary>
+    ''' Pause the given period (in mS) utilising Thread.Sleep
+    ''' </summary>
+    ''' <param name="mS"></param>
+    ''' <remarks></remarks>
+    Public Shared Sub Pause2(ByVal mS As Long, Optional ByVal DoEvents As Boolean = True)
+        For Counter As Int64 = 1 To mS Step 100
+            Threading.Thread.Sleep(CInt(mS / 100))
+            If DoEvents Then Application.DoEvents()
+        Next Counter
+    End Sub
+
+    ''' <summary>
+    ''' Pause the given period (in S) utilising Thread.Sleep
+    ''' </summary>
+    ''' <param name="PeriodSeconds"></param>
+    ''' <param name="DoEvents"></param>
+    ''' <remarks></remarks>
+    Public Shared Sub PauseSeconds2(ByVal PeriodSeconds As Long, Optional ByVal DoEvents As Boolean = True)
+        For Seconds As Long = 1 To PeriodSeconds
+            For Counter As Int32 = 1 To 10
+                Threading.Thread.Sleep(100)
+                If DoEvents Then Application.DoEvents()
+            Next Counter
+        Next Seconds
+    End Sub
+
+    ''' <summary>
+    ''' Swap the given value between Little and Big endian
+    ''' </summary>
+    ''' <param name="Value">The Value to convert</param>
+    ''' <returns>Converted value</returns>
+    ''' <remarks></remarks>
+    Public Shared Function SwapEndian(ByVal Value As Int32) As Int32
+        Dim Buffer() As Byte = BitConverter.GetBytes(Value)
+        Dim Copy(Buffer.Length - 1) As Byte
+
+        Dim Index As Integer = 0
+        For Scan As Integer = Buffer.Length - 1 To 0 Step -1
+            Copy(Index) = Buffer(Scan)
+            Index += 1
+        Next Scan
+        Return BitConverter.ToInt32(Copy, 0)
+    End Function
+
+    ''' <summary>
+    ''' Returns a Boolean indicating if the provided string is a valid email address
+    ''' </summary>
+    ''' <param name="Value">The String to validate</param>
+    ''' <returns>Boolean (True indicates success)</returns>
+    ''' <remarks></remarks>
+    Shared Function IsValidEmailAddress(ByVal EmailAddress As String) As Boolean
+        ' Does not allow email alias
+        'Dim pattern As String = "^(?!\.)(""([^""\r\\]|\\[""\r\\])*""|([-a-z0-9!#$%&'*+/=?^_`{|}~]|(?<!\.)\.)*)(?<!\.)@[a-z0-9][\w\.-]*[a-z0-9]\.[a-z][a-z\.]*[a-z]$"
+
+        ' Does allow email alias
+        Dim Pattern As String = "[-a-z0-9!#$%&'*+/=?^_`{|}~\. ]+<(?!\.)(""([^""\r\\]|\\[""\r\\])*""|([-a-z0-9!#$%&'*+/=?^_`{|}~]|(?<!\.)\.)*)(?<!\.)@[a-z0-9][\w\.-]*[a-z0-9]\.[a-z][a-z\.]*[a-z]>|(?!\.)(""([^""\r\\]|\\[""\r\\])*""|([-a-z0-9!#$%&'*+/=?^_`{|}~]|(?<!\.)\.)*)(?<!\.)@[a-z0-9][\w\.-]*[a-z0-9]\.[a-z][a-z\.]*[a-z]"
+        Dim EmailAddressMatch As System.Text.RegularExpressions.Match = System.Text.RegularExpressions.Regex.Match(EmailAddress, Pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+
+        Return EmailAddressMatch.Success
+    End Function
+
+#End Region
+
+#Region " Private Methods "
+
+    Private Sub DoStartup()
+        GetCommandlineArguments()
+    End Sub
+
+    ''' <summary>
+    ''' Extract command line arguments
+    ''' </summary>
+    ''' <remarks>Arguments are in the form:
+    ''' AppName.exe" u:sysadmin p:password d:50000
+    ''' </remarks>
+    Private Sub GetCommandlineArguments()
+        Try
+            If Microsoft.VisualBasic.Command.Length > 0 Then
+                _CommandLineArguments = Command.Split("-")
+
+                For Each Argument As String In _CommandLineArguments
+                    If Argument.ToLower = "debug" Then
+                        _DebugMode = True
+                    End If
+                Next
+            End If
+        Catch
+        End Try
+    End Sub
+
+#End Region
+
+End Class

@@ -1,0 +1,729 @@
+﻿#Region " Imports "
+
+Imports System.Data
+Imports System.Data.SqlClient
+Imports FleetManager.FMDatabase
+Imports System.Reflection
+Imports System.Reflection.Assembly
+Imports FleetManager.Definitions
+
+#End Region
+
+''' <summary>Usage
+''' </summary>
+''' <remarks>
+'''        Dim Database As New FleetManager.FMDatabase(My.Settings.DatabaseConnectionString, My.Settings.SiteID)
+'''        Dim Connection As New FleetManager.FMConnection(My.Settings.ClientID, Database)
+'''        Dim User As New Login
+'''        User.ClientID = Connection.ClientID
+'''        User.Connection = Connection
+'''        User.Load(DefaultBehaviour.LoadOnly)
+'''        User.SiteID = Database.SiteID
+'''        User.LoginName = "Fred"
+'''        User.Password = "REDACTED"
+'''        User.Save()
+''' </remarks>
+''' 
+
+Public Class Login
+
+    Private _ChangeID As Int32 = 0
+    Private _ClientID As Int32 = 0
+    Private _EmailAddress As String = ""
+    Private _EndDate As Date = Nothing
+    Private _FacsimileNumber As String = ""
+    Private _FirstLogin As Boolean = True
+    Private _GUID As String = ""
+    Private _HideAllocated As Boolean = False
+    Private _Home As String = ""
+    Private _LastLogin As Date = Nothing
+    Private _LoginID As Int32 = 0
+    Private _LoginName As String = ""
+    Private _MarkupDisplay As String = ""
+    Private _MarkupSecurity As String = ""
+    Private _MobileNumber As String = ""
+    Private _OrgUnitID As Int32 = 0
+    Private _Password As String = ""
+    Private _PasswordExpiryDate As Date = Nothing
+    Private _PhoneNumber As String = ""
+    Private _RPP As Int32 = 0
+    Private _SiteID As Int32 = 0
+    Private _StartDate As Date = Now
+    Private _Status As Int32 = 0
+    Private _UID As Int32 = 0
+    Private _UserActive As Boolean = False
+    Private _UserID As Int32 = 0
+    Private _UserRoleID As Int32 = 0
+
+    Private _Valid As Boolean = True
+    Private _IsDirty As Boolean = False
+    Private _HasLoaded As Boolean = False
+    Private _Connection As FMConnection
+
+#Region " Properties "
+
+    Public Property Connection() As FMConnection
+        Get
+            Return _Connection
+        End Get
+        Set(ByVal value As FMConnection)
+            _Connection = value
+        End Set
+    End Property
+
+    Public Property UID() As Int32
+        Get
+            Return _UID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _UID))
+            _UID =REDACTED
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property LoginID() As Int32
+        Get
+            Return _LoginID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _LoginID))
+            _LoginID = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property StartDate() As Date
+        Get
+            Return _StartDate
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _StartDate))
+            _StartDate = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property EndDate() As Date
+        Get
+            Return _EndDate
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _EndDate))
+            _EndDate = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property SiteID() As Int32
+        Get
+            Return _SiteID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _SiteID))
+            _SiteID = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property LoginName() As String
+        Get
+            Return _LoginName
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _LoginName))
+            _LoginName = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property Password() As String
+        Get
+            Return _Password
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Password))
+            _Password =REDACTED
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property PasswordExpiryDate() As Date
+        Get
+            Return _PasswordExpiryDate
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PasswordExpiryDate))
+            _PasswordExpiryDate = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ClientID))
+            _ClientID = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property UserID() As Int32
+        Get
+            Return _UserID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _UserID))
+            _UserID =REDACTED
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property ChangeID() As Int32
+        Get
+            Return _ChangeID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ChangeID))
+            _ChangeID = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property Home() As String
+        Get
+            Return _Home
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Home))
+            _Home = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property UserRoleID() As Int32
+        Get
+            Return _UserRoleID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _UserRoleID))
+            _UserRoleID = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property FirstLogin() As Boolean
+        Get
+            Return _FirstLogin
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _FirstLogin))
+            _FirstLogin = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property LastLogin() As Date
+        Get
+            Return _LastLogin
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _LastLogin))
+            _LastLogin = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property OrgUnitID() As Int32
+        Get
+            Return _OrgUnitID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _OrgUnitID))
+            _OrgUnitID = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property UserActive() As Boolean
+        Get
+            Return _UserActive
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _UserActive))
+            _UserActive = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property Status() As Int32
+        Get
+            Return _Status
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Status))
+            _Status = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property PhoneNumber() As String
+        Get
+            Return _PhoneNumber
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PhoneNumber))
+            _PhoneNumber = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property MobileNumber() As String
+        Get
+            Return _MobileNumber
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _MobileNumber))
+            _MobileNumber = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property FacsimileNumber() As String
+        Get
+            Return _FacsimileNumber
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _FacsimileNumber))
+            _FacsimileNumber = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property EmailAddress() As String
+        Get
+            Return _EmailAddress
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _EmailAddress))
+            _EmailAddress = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property HideAllocated() As Boolean
+        Get
+            Return _HideAllocated
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _HideAllocated))
+            _HideAllocated = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property RPP() As Int32
+        Get
+            Return _RPP
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _RPP))
+            _RPP = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property MarkupSecurity() As String
+        Get
+            Return _MarkupSecurity
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _MarkupSecurity))
+            _MarkupSecurity = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property MarkupDisplay() As String
+        Get
+            Return _MarkupDisplay
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _MarkupDisplay))
+            _MarkupDisplay = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property GUID() As String
+        Get
+            Return _GUID
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _GUID))
+            _GUID =REDACTED
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property Valid() As Boolean
+        Get
+            Return _Valid
+        End Get
+        Set(ByVal value As Boolean)
+            _Valid = value
+        End Set
+    End Property
+
+    Public Property IsDirty() As Boolean
+        Get
+            Return _IsDirty
+        End Get
+        Set(ByVal value As Boolean)
+            _IsDirty = value
+        End Set
+    End Property
+
+    Public ReadOnly Property HasLoaded() As Boolean
+        Get
+            Return _HasLoaded
+        End Get
+    End Property
+
+#End Region
+
+    Public Sub New(ByVal ClientID As Int32)
+        If ClientID > 0 Then
+            ' TODO:  Search for this clientID.
+            _ClientID = ClientID
+        Else
+            Err.Raise(vbObjectError + 516, GetExecutingAssembly.GetName.Name, "Client ID not specified for FleetManager Connection.")
+        End If
+    End Sub
+
+    Public Sub New()
+
+    End Sub
+
+    Public Sub New(ByVal Connection As FMConnection)
+        _Connection = Connection
+    End Sub
+
+    Public Sub New(ByVal ClientID As Int32, ByVal Connection As FMConnection)
+        _ClientID = ClientID
+        _Connection = Connection
+    End Sub
+
+    ''' <summary>
+    ''' Load the Login details
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Function Load(ByRef User As Login, Optional ByVal Behaviour As DefaultBehaviour = DefaultBehaviour.LoadOnly) As Boolean
+        Dim SQL_ID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        Try
+            If _Connection.ObjectIsValid Then
+
+                User = _Connection.GetLoginbyID(SQL_ID) ' User = _Connection.GetLoginbyUID(SQL_ID)
+
+                ' Set all the local variables
+                _ChangeID = User.ChangeID
+                _ClientID = User.ClientID
+                _EmailAddress = User.EmailAddress
+                _EndDate = User.EndDate
+                _FacsimileNumber = User.FacsimileNumber
+                _FirstLogin = User.FirstLogin
+                _GUID =REDACTED
+                _HideAllocated = User.HideAllocated
+                _Home = User.Home
+                _LastLogin = User.LastLogin
+                _LoginID = User.LoginID
+                _LoginName = User.LoginName
+                _MarkupDisplay = User.MarkupDisplay
+                _MarkupSecurity = User.MarkupSecurity
+                _MobileNumber = User.MobileNumber
+                _OrgUnitID = User.OrgUnitID
+                _Password =REDACTED
+                _PasswordExpiryDate = User.PasswordExpiryDate
+                _PhoneNumber = User.PhoneNumber
+                _RPP = User.RPP
+                _SiteID = User.SiteID
+                _StartDate = User.StartDate
+                _Status = User.Status
+                _UID =REDACTED
+                _UserActive = User.UserActive
+                _UserID =REDACTED
+                _UserRoleID = User.UserRoleID
+                _Valid = User.Valid
+                _IsDirty = False
+                _HasLoaded = True
+                Return True
+            Else
+                ' Transfer the details we have to the new object
+                User.ChangeID = _ChangeID
+                User.ClientID = _ClientID
+                User.EmailAddress = _EmailAddress
+                User.EndDate = _EndDate
+                User.FacsimileNumber = _FacsimileNumber
+                User.FirstLogin = _FirstLogin
+                User.GUID =REDACTED
+                User.HideAllocated = _HideAllocated
+                User.Home = _Home
+                User.LastLogin = _LastLogin
+                User.LoginID = _LoginID
+                User.LoginName = _LoginName
+                User.MarkupDisplay = _MarkupDisplay
+                User.MarkupSecurity = _MarkupSecurity
+                User.MobileNumber = _MobileNumber
+                User.OrgUnitID = _OrgUnitID
+                User.Password =REDACTED
+                User.PasswordExpiryDate = _PasswordExpiryDate
+                User.PhoneNumber = _PhoneNumber
+                User.RPP = _RPP
+                User.SiteID = _SiteID
+                User.StartDate = _StartDate
+                User.Status = _Status
+                User.UID =REDACTED
+                User.UserActive = _UserActive
+                User.UserID =REDACTED
+                User.UserRoleID = _UserRoleID
+                User.Valid = _Valid
+
+                Select Case Behaviour
+                    Case DefaultBehaviour.FailOnNotExist
+                        ' We are configured to raise an error if the OU could not be found.
+                        Err.Raise(vbObjectError + 529, GetExecutingAssembly.GetName.Name, "The Login referenced by this UID does not exist.")
+                        _IsDirty = False
+                        _HasLoaded = False
+                        Return False
+                    Case DefaultBehaviour.LoadOrCreate
+                        ' We are configured to create the OU if it could not be found
+                        If User.ClientID > 0 Then
+                            ' Now save it
+                            User.UID =REDACTED
+                        End If
+                        _IsDirty = False
+                        _HasLoaded = True
+                        Return True
+                    Case DefaultBehaviour.LoadOnly
+                        _IsDirty = False
+                        _HasLoaded = True
+                        Return False
+                End Select
+            End If
+        Catch
+            _HasLoaded = False
+            Return False
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Load the Login details
+    ''' </summary>
+    ''' <remarks></remarks>
+    ''' 
+    Public Function Load(Optional ByVal Behaviour As DefaultBehaviour = DefaultBehaviour.LoadOnly) As Boolean
+        Dim SQL_ID As Int32 = 0
+        Dim User As New Login
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        Try
+            If _Connection.ObjectIsValid Then
+
+                User = _Connection.GetLoginbyID(SQL_ID)
+
+                ' Set all the local variables
+                _ChangeID = User.ChangeID
+                _ClientID = User.ClientID
+                _EmailAddress = User.EmailAddress
+                _EndDate = User.EndDate
+                _FacsimileNumber = User.FacsimileNumber
+                _FirstLogin = User.FirstLogin
+                _GUID =REDACTED
+                _HideAllocated = User.HideAllocated
+                _Home = User.Home
+                _LastLogin = User.LastLogin
+                _LoginID = User.LoginID
+                _LoginName = User.LoginName
+                _MarkupDisplay = User.MarkupDisplay
+                _MarkupSecurity = User.MarkupSecurity
+                _MobileNumber = User.MobileNumber
+                _OrgUnitID = User.OrgUnitID
+                _Password =REDACTED
+                _PasswordExpiryDate = User.PasswordExpiryDate
+                _PhoneNumber = User.PhoneNumber
+                _RPP = User.RPP
+                _SiteID = User.SiteID
+                _StartDate = User.StartDate
+                _Status = User.Status
+                _UID =REDACTED
+                _UserActive = User.UserActive
+                _UserID =REDACTED
+                _UserRoleID = User.UserRoleID
+                _Valid = User.Valid
+                _IsDirty = False
+                _HasLoaded = True
+                Return True
+            Else
+                ' Transfer the details we have to the new object
+                User.ChangeID = _ChangeID
+                User.ClientID = _ClientID
+                User.EmailAddress = _EmailAddress
+                User.EndDate = _EndDate
+                User.FacsimileNumber = _FacsimileNumber
+                User.FirstLogin = _FirstLogin
+                User.GUID =REDACTED
+                User.HideAllocated = _HideAllocated
+                User.Home = _Home
+                User.LastLogin = _LastLogin
+                User.LoginID = _LoginID
+                User.LoginName = _LoginName
+                User.MarkupDisplay = _MarkupDisplay
+                User.MarkupSecurity = _MarkupSecurity
+                User.MobileNumber = _MobileNumber
+                User.OrgUnitID = _OrgUnitID
+                User.Password =REDACTED
+                User.PasswordExpiryDate = _PasswordExpiryDate
+                User.PhoneNumber = _PhoneNumber
+                User.RPP = _RPP
+                User.SiteID = _SiteID
+                User.StartDate = _StartDate
+                User.Status = _Status
+                User.UID =REDACTED
+                User.UserActive = _UserActive
+                User.UserID =REDACTED
+                User.UserRoleID = _UserRoleID
+                User.Valid = _Valid
+
+                Select Case Behaviour
+                    Case DefaultBehaviour.FailOnNotExist
+                        ' We are configured to raise an error if the OU could not be found.
+                        Err.Raise(vbObjectError + 529, GetExecutingAssembly.GetName.Name, "The Login referenced by this UID does not exist.")
+                        _IsDirty = False
+                        _HasLoaded = False
+                        Return False
+                    Case DefaultBehaviour.LoadOrCreate
+                        ' We are configured to create the OU if it could not be found
+                        If User.ClientID > 0 Then
+                            ' Now save it
+                            User.UID =REDACTED
+                        End If
+                        _IsDirty = False
+                        _HasLoaded = True
+                        Return True
+                    Case DefaultBehaviour.LoadOnly
+                        _IsDirty = False
+                        _HasLoaded = True
+                        Return False
+                End Select
+            End If
+        Catch
+            _HasLoaded = False
+            Return False
+        End Try
+
+    End Function
+
+    <Obsolete("Not implemented")> _
+    Public Sub Delete()
+
+    End Sub
+
+    <Obsolete("Not implemented")> _
+    Public Sub Move()
+
+    End Sub
+
+    Public Function Save() As Int32
+        Dim SQL_ID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' Find the person
+        SQL_ID = _Connection.GetID(Me)
+
+        If Not _Connection.ObjectIsValid Then
+            _LoginID = _Connection.Insert(Me)
+            'trace.writeline("The ID for this Person is " & _LoginID)
+
+            Return _LoginID
+        Else
+            If _IsDirty Then
+                'trace.writeline("This Person has to be saved")
+                _Connection.Update(Me)
+            Else
+                'trace.writeline("No requirement to save this Person")
+            End If
+
+            _IsDirty = False
+            _LoginID = SQL_ID
+            Return _LoginID 'Me.ID
+        End If
+
+    End Function
+
+End Class

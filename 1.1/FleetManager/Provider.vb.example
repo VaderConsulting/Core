@@ -1,0 +1,58 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.1.0.1    07 Jun 11    DR          Enhancement   Based on .NET 3.5 version 1.0.15.25
+'
+#End Region
+
+Public Class Provider
+
+    Private _ServiceType As Int32 = -1
+    Private _UID As Int32 = -1
+    Private _Provider As String = ""
+    Private _ProviderCode As String = ""
+
+    Public Property UID() As Int32
+        Get
+            Return _UID
+        End Get
+        Set(ByVal value As Int32)
+            _UID =REDACTED
+        End Set
+    End Property
+
+    Public Property ProviderName() As String
+        Get
+            Return _Provider
+        End Get
+        Set(ByVal value As String)
+            _Provider = value
+        End Set
+    End Property
+
+    Public Property ServiceType() As Int32
+        Get
+            Return _ServiceType
+        End Get
+        Set(ByVal value As Int32)
+            _ServiceType = value
+        End Set
+    End Property
+
+    Public Property ProviderCode() As String
+        Get
+            Return _ProviderCode
+        End Get
+        Set(ByVal value As String)
+            _ProviderCode = value
+        End Set
+    End Property
+
+End Class

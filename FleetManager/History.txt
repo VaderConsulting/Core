@@ -1,0 +1,67 @@
+﻿### Please choose from the following Entry types:
+### Bugfix
+### Enhancement
+### Change
+
+----------------------------------------------------------------------------------------------------------------------------------------
+Version    Date         Initials    Type          Class               Description
+----------------------------------------------------------------------------------------------------------------------------------------
+1.0.0.0    26 Jun 09    DR          Release       Solution
+1.0.0.1    26 Aug 09    DR          Enhancement   Solution            Added Login class
+                                    Enhancement   FMConnection        Added support for Login Class
+                                    Bugfix        FMConnection        Changed all variables from Integer or Long to Int32
+                                    Bugfix        Account             Changed all variables from Integer or Long to Int32
+                                    Bugfix        Person              Changed all variables from Integer or Long to Int32
+                                    Bugfix        Provider            Changed all variables from Integer or Long to Int32
+                                    Bugfix        PhoneCall           Changed all variables from Integer or Long to Int32
+                                    Bugfix        Phone               Changed all variables from Integer or Long to Int32
+                                    Bugfix        OrganisationalUnit  Changed all variables from Integer or Long to Int32
+                                    Bugfix        FMDatabase          Changed all variables from Integer or Long to Int32
+                                    Bugfix        Client              Changed all variables from Integer or Long to Int32
+                                    Bugfix        Calls               Changed all variables from Integer or Long to Int32
+                                    Bugfix        Bill                Changed all variables from Integer or Long to Int32
+                                    Bugfix        Asset               Changed all variables from Integer or Long to Int32
+                                    Bugfix        OrganisationalUnit  Changed all variables from Integer or Long to Int32
+1.0.0.2    27 Aug 09    DR          Enhancement   FMDatabase          Execute: Added 'Target' parameter to allow targeting Connection or Data databases
+                                    Enhancement   FMDatabase          ExecuteNonQuery: Added 'Target' parameter to allow targeting Connection or Data databases
+                                    Enhancement   FMDatabase          ExecuteStoredProcedure: Added 'Target' parameter to allow targeting Connection or Data databases
+                                    Enhancement   FMConnection        Changed all calls to Execute, ExecuteNonQuery and ExecuteStoredProcedure to specify Target
+                                    Enhancement   Bill                Changed all calls to Execute, ExecuteNonQuery and ExecuteStoredProcedure to specify Target
+                                    Enhancement   FMDatabase          Added ReadOnly property to return SiteID
+                                    BugFix        Person              Changed both Load methods to set HasLoaded Property correctly (as per OrganisationalUnit)
+1.0.1.3    23 Oct 09    DR          Enhancement   FMDatabase          Execute: Added 300 second CommandTimeout
+                                    Enhancement   FMDatabase          ExecuteNonQuery: Added 300 second CommandTimeout
+                                    Enhancement   FMDatabase          ExecuteStoredProcedure: Added 300 second CommandTimeout
+                                    Bugfix        Solution            Modified Company name to Stratatel Ltd (was Microsoft)
+1.0.2.4                 DK          BugFix	      FMConnection	      QueryString error with '('
+1.0.2.5	   13 Jan 10    DK          Enhancement   Person & Phone      Added Comment to Phone & MiddleName,Salutation and SecondaryContactNumber to Person
+1.0.2.6    15 Jan 10    DK          Enhancement   OrganisationalUnit  Added OrgUnitStreetAddress, OrgUnitSuburb, OrgUnitState, OrgUnitCountry, OrgUnitPostCode
+1.0.2.7    19 Jan 10    DR          Enhancement   FMDatabase          Added ReadOnly properties for DataConnection and ControlConnection
+                                    BugFix        FMDatabase          Corrected the order in which the CommandTimeout property was set in Execute and ExecuteNonQuery
+1.0.3.8    25 Jan 10    DR          Enhancement   FMConnection        Added SQLVersion Property
+                                                                      Added ability to detect the current SQL Server version.  This is saved in SQLVersion.
+                                                                      Required when performing SELECT TOP queries as the syntax changes between SQL Server versions.
+1.0.3.9    02 Feb 10    DR          BugFix        FMConnection        Person and OrgUnit Updates were incorrectly setting the ID's to UID.
+1.0.4.10   08 Feb 10    DR          Enhancement   FMDatabase          Added Timeout value to Execute, ExecuteNonQuery and ExecuteStoredProcedure
+1.0.4.11   22 Feb 10    DK          Enhancement   FMConnection        Added Function GetPersonID(FirstName, LastName) = Search via firstname and lastname
+1.0.4.12   23 Feb 10    DK          Enhancement   FMConnection        Added Function GetOrganisationalunitID(Name, ParentID) = Search via name and parentid
+1.0.4.13   24 Feb 10    DK          Enhancement   FMConnection        Added Function GetPersonUID(FirstName, LastName) = Search via firstname and lastname
+1.0.5.14   26 Feb 10    DK          Enhancement   Many Classes        Added new feature to Save function; now supports the ability to return what type of action was perform ie: Update, Insert or None
+1.0.6.15   02 Mar 10    DR          Enhancement   FMDatabase          Added OverrideDataConnectionString method to allow testing with a set Data connection string
+1.0.7.16   22 Apr 10    DR          Enhancement   Person              Added GetPersonByID.  Previously only GetPersonByUID existed.
+                                    Bugfix        FMConnection        Modified Load(Person) to use GetPersonByID.
+1.0.8.17   12 May 10    DR          Enhancement   Phone               Added overloaded Save() method to return (BYREF) the Save Operation used
+                                                  Person              Added overloaded Save() method to return (BYREF) the Save Operation used
+1.0.8.18   13 Jul 10    DR          Change        Solution            Replaced all "m_" field names with "_"
+1.0.9.19   02 Aug 10    DR          Enhancement   OrganisationalUnit  Changed the default for _State to be 1
+1.0.10.20  09 Aug 10    DR          Change        FMConnection        Renamed GetMaximunImportQueueID to GetMaximumImportQueueID
+                                    Bugfix        Phone               Changed _EndDate to default to _Date.MinValue
+                                    Change        Service             Renamed Class: Service to ServiceCharge
+1.0.11.21  11 Aug 10    DR          Bugfix        FMConnection        Updated GetBillCode and CountBillsCreated to properly use the correct service prefix                                    
+1.0.12.22  13 Aug 10    DR          Bugfix        OrganisationUnit    Updated both Load methods to return _HasLoaded = True only if SQL_ID >0
+                                                  Phone               Updated both Load methods to return _HasLoaded = True only if SQL_ID >0
+                                                  Person              Updated both Load methods to return _HasLoaded = True only if SQL_ID >0
+1.0.13.23  22 Nov 10    DR          Change        FMConnection        Removed GetTranslatedConnectionString 
+1.0.14.24  14 Dec 10    DR          Enhancement   FMDatabase          Added GetDatabaseConnectionString2 and associated properties
+                                                                      Modified New() method to perform GetDatabaseConnectionString2
+1.0.15.25  23 Mar 11    DR          Enhancement   FMConnection        Added new overload for GetServicesWithRentalCharges to accept Month and Year

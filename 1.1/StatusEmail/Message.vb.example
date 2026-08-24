@@ -1,0 +1,531 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.0.0.0    21 Jun 11    DR          Enhancement   Original release
+' 1.0.1.1    23 Jun 11    DR          Change        Add spacing between tables
+' 1.0.2.2    23 Jun 11    DR          Change        Add more spacing between tables
+' 1.0.3.3    24 Jun 11    DR          Change        Added EndNote
+'
+#End Region
+
+#Region " Imports"
+
+Imports Core
+Imports Core.Common
+Imports Core.Email
+Imports System.Text.StringBuilder
+
+#End Region
+
+Public Class Message
+    Inherits Core.Email.Message
+
+#Region " Enums "
+
+    Public Enum EmailStatus
+        Unknown = 0
+        Success = 1
+        Failure = 2
+        SuccessWithExceptions = Success + Failure
+    End Enum
+
+#End Region
+
+#Region " Private variables "
+
+    Private _StatusDataSet As Data.DataSet
+    Private _ExceptionDataSet As Data.DataSet
+    Private _Status As EmailStatus = EmailStatus.Unknown
+    Private _ClientName As String = ""
+    Private _Title As String = "Un-Named Report"
+    Private _StatusMessage As String = "No Status set"
+    Private _DefaultToAddress As String = "redacted@example.com"
+    Private _ProcessName As String = "Un-Named Process"
+    Private _IncludeStatusMessage As Boolean = True
+    Private _IncludeTitle As Boolean = True
+    Private _StatusTotalRowIncluded As Boolean = True
+    Private _ExceptionTotalRowIncluded As Boolean = True
+    Private _AddTableSeperator As Boolean = False
+    Private _UseWingDingsSymbolsForStatus As Boolean = True
+    Private _EndNote As String = ""
+
+#End Region
+
+#Region " Public Properties"
+
+    Public Property StatusDataSet() As DataSet
+        Get
+            Return _StatusDataSet
+        End Get
+        Set(ByVal Value As DataSet)
+            _StatusDataSet = Value
+        End Set
+    End Property
+
+    Public Property ExceptionDataSet() As DataSet
+        Get
+            Return _ExceptionDataSet
+        End Get
+        Set(ByVal Value As DataSet)
+            _ExceptionDataSet = Value
+        End Set
+    End Property
+
+    Public Property Status() As EmailStatus
+        Get
+            Return _Status
+        End Get
+        Set(ByVal Value As EmailStatus)
+            _Status = Value
+        End Set
+    End Property
+
+    Public Property ClientName() As String
+        Get
+            Return _ClientName
+        End Get
+        Set(ByVal Value As String)
+            _ClientName = Value
+        End Set
+    End Property
+
+    Public Property Title() As String
+        Get
+            Return _Title
+        End Get
+        Set(ByVal Value As String)
+            _Title = Value
+        End Set
+    End Property
+
+    Public Property StatusMessage() As String
+        Get
+            Return _StatusMessage
+        End Get
+        Set(ByVal Value As String)
+            _StatusMessage = Value
+        End Set
+    End Property
+
+    Public Property StatusTotalRowIncluded() As Boolean
+        Get
+            Return _StatusTotalRowIncluded
+        End Get
+        Set(ByVal Value As Boolean)
+            _StatusTotalRowIncluded = Value
+        End Set
+    End Property
+
+    Public Property ExceptionTotalRowIncluded() As Boolean
+        Get
+            Return _ExceptionTotalRowIncluded
+        End Get
+        Set(ByVal Value As Boolean)
+            _ExceptionTotalRowIncluded = Value
+        End Set
+    End Property
+
+    Public ReadOnly Property DefaultToAddress() As String
+        Get
+            Return _DefaultToAddress
+        End Get
+    End Property
+
+    Public Property ProcessName() As String
+        Get
+            Return _ProcessName
+        End Get
+        Set(ByVal Value As String)
+            _ProcessName = Value
+        End Set
+    End Property
+
+    Public Property AddTableSeperator() As Boolean
+        Get
+            Return _AddTableSeperator
+        End Get
+        Set(ByVal Value As Boolean)
+            _AddTableSeperator = Value
+        End Set
+    End Property
+
+    Public Property UseWingDingsSymbolsForStatus() As Boolean
+        Get
+            Return _UseWingDingsSymbolsForStatus
+        End Get
+        Set(ByVal Value As Boolean)
+            _UseWingDingsSymbolsForStatus = Value
+        End Set
+    End Property
+
+    Public Property EndNote() As String
+        Get
+            Return _EndNote
+        End Get
+        Set(ByVal Value As String)
+            _EndNote = Value
+        End Set
+    End Property
+
+#End Region
+
+#Region " Constructors"
+
+    Public Sub New()
+        MyBase.new()
+        Initialise()
+    End Sub
+
+    Public Sub New(ByVal StyleSheet As String)
+        MyBase.New(StyleSheet)
+        Initialise()
+    End Sub
+
+#End Region
+
+#Region " Public Methods "
+
+    Public Sub AddExceptionRow(ByVal ExceptionRow As DataRow)
+        CloneTable(ExceptionRow, _ExceptionDataSet.Tables(0))
+    End Sub
+
+    Public Sub AddStatusRow(ByVal StatusDataSetNumber As Int32, ByVal StatusRow As DataRow)
+        CloneTable(StatusRow, _StatusDataSet.Tables(StatusDataSetNumber))
+    End Sub
+
+    Public Sub AddStatusTable()
+        _StatusDataSet.Tables.Add()
+    End Sub
+
+    Public Sub AddStatusTable(ByVal Name As String)
+        _StatusDataSet.Tables.Add(Name)
+    End Sub
+
+    Public Sub ClearExceptions()
+        InitExceptions()
+    End Sub
+
+    Public Sub ClearStatuses()
+        InitStatuses()
+    End Sub
+
+    Public Overrides Function Send() As Boolean
+
+        MyBase.MailBody = ComposeEmailBody()
+        MyBase.ToAddresses.Add(_DefaultToAddress)
+
+        Return MyBase.Send
+    End Function
+
+#End Region
+
+#Region " Private Methods "
+
+    Private Sub Initialise()
+        InitExceptions()
+        InitStatuses()
+    End Sub
+
+    Private Sub InitExceptions()
+        _ExceptionDataSet = New DataSet
+        _ExceptionDataSet.Tables.Add("Exceptions")
+    End Sub
+
+    Private Sub InitStatuses()
+        _StatusDataSet = New DataSet
+        _StatusDataSet.Tables.Add("Statuses")
+    End Sub
+
+    Private Function ComposeEmailBody() As String
+        Dim EmailBody As New System.Text.StringBuilder
+        Dim RowCounter As Int32 = 0
+
+        EmailBody.Append("        <table cellpadding='4' cellspacing='0' width='100%'>" & vbCrLf)
+        EmailBody.Append("            <tr align='left'>" & vbCrLf)
+
+        ' Overall Status
+        Select Case _Status
+            Case EmailStatus.Unknown
+                EmailBody.Append("                <td style='FONT-SIZE: 9pt; COLOR: #808080;'><font size='11'>") ' Grey
+                EmailBody.Append("?")
+                EmailBody.Append("</font>")
+                EmailBody.Append("&nbsp;The final state of the&nbsp;" & _ProcessName & " Process is Unknown.</td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+            Case EmailStatus.Success
+                If _UseWingDingsSymbolsForStatus Then
+                    EmailBody.Append("                <td style='FONT-SIZE: 9pt; COLOR: #009E73;'><font face='Wingdings' size='11'>") ' Bluish Green
+                    EmailBody.Append(Chr(252))
+                Else
+                    EmailBody.Append("                <td style='FONT-SIZE: 9pt; COLOR: #009E73;'><font size='11'>") ' Bluish Green
+                End If
+
+                EmailBody.Append("</font>")
+                EmailBody.Append("&nbsp;The&nbsp;" & _ProcessName & "&nbsp;Process was successful.</td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+            Case EmailStatus.Failure
+                If _UseWingDingsSymbolsForStatus Then
+                    EmailBody.Append("                <td style='FONT-SIZE: 9pt; COLOR: #D55E00;'><font face='Wingdings' size='11'>") ' Vermillion
+                    EmailBody.Append(Chr(251))
+                Else
+                    EmailBody.Append("                <td style='FONT-SIZE: 9pt; COLOR: #D55E00;'><font size='11'>") ' Vermillion
+                End If
+
+                EmailBody.Append("</font>")
+                EmailBody.Append("&nbsp;The&nbsp;" & _ProcessName & "&nbsp;Process was unsuccessful.</td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+            Case EmailStatus.SuccessWithExceptions
+                If _UseWingDingsSymbolsForStatus Then
+                    EmailBody.Append("                <td style='FONT-SIZE: 9pt; COLOR: #E69F00;'><font face='Wingdings' size='11'>") ' Orange
+                    EmailBody.Append(Chr(252))
+                Else
+                    EmailBody.Append("                <td style='FONT-SIZE: 9pt; COLOR: #E69F00;'><font size='11'>") ' Orange
+                End If
+
+                EmailBody.Append("</font>")
+                EmailBody.Append("&nbsp;The&nbsp;" & _ProcessName & "&nbsp;Process was successful, but one or more exceptions occurred.</td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+        End Select
+
+        ' Report Status Message
+        If _StatusMessage.Trim.Length > 0 Then
+            EmailBody.Append("            <tr>" & vbCrLf)
+            EmailBody.Append("                <td>" & vbCrLf)
+            EmailBody.Append("                    <table cellpadding='3' cellspacing='0' width='100%'>" & vbCrLf)
+            EmailBody.Append("                        <tr>" & vbCrLf)
+            EmailBody.Append("                            <td>" & _StatusMessage & "</td>" & vbCrLf)
+            EmailBody.Append("                        </tr>" & vbCrLf)
+            EmailBody.Append("                    </table>" & vbCrLf)
+            EmailBody.Append("                </td>" & vbCrLf)
+            EmailBody.Append("            </tr>" & vbCrLf)
+        End If
+
+        ' Client Name
+        If _ClientName.Trim.Length > 0 Then
+            EmailBody.Append("            <tr>" & vbCrLf)
+            EmailBody.Append("                <td>" & vbCrLf)
+            EmailBody.Append("                    <table cellpadding='3' cellspacing='0' width='100%'>" & vbCrLf)
+            EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+            EmailBody.Append("                            <td>" & _ClientName & "</td>" & vbCrLf)
+            EmailBody.Append("                        </tr>" & vbCrLf)
+            EmailBody.Append("                    </table>" & vbCrLf)
+            EmailBody.Append("                </td>" & vbCrLf)
+            EmailBody.Append("            </tr>" & vbCrLf)
+        End If
+
+        ' Title
+        If _Title.Trim.Length > 0 Then
+            EmailBody.Append("            <tr>" & vbCrLf)
+            EmailBody.Append("                <td>" & vbCrLf)
+            EmailBody.Append("                    <table cellpadding='3' cellspacing='0' width='100%'>" & vbCrLf)
+            EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+            EmailBody.Append("                            <td>" & _Title & "</td>" & vbCrLf)
+            EmailBody.Append("                        </tr>" & vbCrLf)
+            EmailBody.Append("                    </table>" & vbCrLf)
+            EmailBody.Append("                </td>" & vbCrLf)
+            EmailBody.Append("            </tr>" & vbCrLf)
+        End If
+
+        ' Blank line
+        EmailBody.Append("            <tr>" & vbCrLf)
+        EmailBody.Append("                <td nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+        EmailBody.Append("            </tr>" & vbCrLf)
+
+        ' Blank line
+        EmailBody.Append("            <tr>" & vbCrLf)
+        EmailBody.Append("                <td nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+        EmailBody.Append("            </tr>" & vbCrLf)
+
+        ' Each of the Status Tables
+        For Each Table As Data.DataTable In _StatusDataSet.Tables
+            If Table.Rows.Count > 0 Then
+                EmailBody.Append("            <tr>" & vbCrLf)
+                EmailBody.Append("                <td>" & vbCrLf)
+                ' Table name
+                EmailBody.Append("                    <table cellpadding='0' cellspacing='0' width='100%'>" & vbCrLf)
+                EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+                EmailBody.Append("                            <td>" & Table.TableName & "</td>" & vbCrLf)
+                EmailBody.Append("                        </tr>" & vbCrLf)
+                EmailBody.Append("                        <tr style='height:3px'>" & vbCrLf)
+                EmailBody.Append("                            <td></td>" & vbCrLf)
+                EmailBody.Append("                        </tr>" & vbCrLf)
+                EmailBody.Append("                    </table>" & vbCrLf)
+
+                EmailBody.Append("                    <table cellpadding='0' cellspacing='0' width='100%' class='stdtable'>" & vbCrLf)
+                'EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+                'EmailBody.Append("                            <td colspan='" & table.Columns.Count & "'>" & Table.TableName & "</td>" & vbCrLf)
+                'EmailBody.Append("                        </tr>" & vbCrLf)
+                EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+
+                ' Column Names
+                For Each Column As DataColumn In Table.Columns
+                    EmailBody.Append("                            <td>" & Column.ColumnName & "</td>" & vbCrLf)
+                Next
+
+                EmailBody.Append("                        </tr>" & vbCrLf)
+
+                ' Column Data
+                For Each Row As DataRow In Table.Rows
+                    RowCounter += 1
+
+                    If _StatusTotalRowIncluded And RowCounter = table.Rows.Count Then
+                        EmailBody.Append("                        <tr style='color: #000000; font-size: 11px; font-family: arial, verdana, helvetica;' class='heading'>" & vbCrLf)
+                    Else
+                        EmailBody.Append("                        <tr>" & vbCrLf)
+                    End If
+
+                    For ColumnCounter As Int32 = 0 To UBound(Row.ItemArray)
+                        If _StatusTotalRowIncluded And RowCounter = table.Rows.Count Then
+                            EmailBody.Append("                            <td style='FONT-WEIGHT: bold'>" & Row.Item(ColumnCounter).ToString & "</td>" & vbCrLf)
+                        Else
+                            EmailBody.Append("                            <td>" & Row.Item(ColumnCounter).ToString & "</td>" & vbCrLf)
+                        End If
+                    Next
+                    EmailBody.Append("                        </tr>" & vbCrLf)
+                Next
+
+                If _AddTableSeperator Then
+                    EmailBody.Append("                        <tr style='color: #000000; font-size: 11px; font-family: arial, verdana, helvetica;' class='heading'>" & vbCrLf)
+                    EmailBody.Append("                            <td colspan='" & table.Columns.Count & "' nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+                    EmailBody.Append("                        </tr>" & vbCrLf)
+                End If
+
+                RowCounter = 0
+
+                EmailBody.Append("                    </table>" & vbCrLf)
+                EmailBody.Append("                </td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+            End If
+
+            ' Blank line
+            EmailBody.Append("            <tr>" & vbCrLf)
+            EmailBody.Append("                <td nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+            EmailBody.Append("            </tr>" & vbCrLf)
+
+            ' Blank line
+            EmailBody.Append("            <tr>" & vbCrLf)
+            EmailBody.Append("                <td nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+            EmailBody.Append("            </tr>" & vbCrLf)
+        Next
+
+        ' Exception Table
+        For Each Table As Data.DataTable In _ExceptionDataSet.Tables
+            If Table.Rows.Count > 0 Then
+                EmailBody.Append("            <tr>" & vbCrLf)
+                EmailBody.Append("                <td>" & vbCrLf)
+                ' Table name              
+                EmailBody.Append("                    <table cellpadding='0' cellspacing='0' width='100%'>" & vbCrLf)
+                EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+                EmailBody.Append("                            <td>" & Table.TableName & "</td>" & vbCrLf)
+                EmailBody.Append("                        </tr>" & vbCrLf)
+                EmailBody.Append("                        <tr style='height:3px'>" & vbCrLf)
+                EmailBody.Append("                            <td></td>" & vbCrLf)
+                EmailBody.Append("                        </tr>" & vbCrLf)
+                EmailBody.Append("                    </table>" & vbCrLf)
+
+                EmailBody.Append("                    <table cellpadding='0' cellspacing='0' width='100%' class='ExceptionTable'>" & vbCrLf)
+                'EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+                'EmailBody.Append("                            <td colspan='" & table.Columns.Count & "'>" & Table.TableName & "</td>" & vbCrLf)
+                'EmailBody.Append("                        </tr>" & vbCrLf)
+                EmailBody.Append("                        <tr class='heading'>" & vbCrLf)
+
+                ' Column Names
+                For Each Column As DataColumn In Table.Columns
+                    EmailBody.Append("                            <td>" & Column.ColumnName & "</td>" & vbCrLf)
+                Next
+
+                EmailBody.Append("                        </tr>" & vbCrLf)
+
+                ' Column Data
+                For Each Row As DataRow In Table.Rows
+                    RowCounter += 1
+
+                    If _ExceptionTotalRowIncluded And RowCounter = table.Rows.Count Then
+                        EmailBody.Append("                        <tr style='color: #000000; font-size: 11px; font-family: arial, verdana, helvetica;' class='heading'>" & vbCrLf)
+                    Else
+                        EmailBody.Append("                        <tr>" & vbCrLf)
+                    End If
+
+                    For ColumnCounter As Int32 = 0 To UBound(Row.ItemArray)
+                        If _ExceptionTotalRowIncluded And RowCounter = table.Rows.Count Then
+                            EmailBody.Append("                            <td style='FONT-WEIGHT: bold'>" & Row.Item(ColumnCounter).ToString & "</td>" & vbCrLf)
+                        Else
+                            EmailBody.Append("                            <td>" & Row.Item(ColumnCounter).ToString & "</td>" & vbCrLf)
+                        End If
+                    Next
+                    EmailBody.Append("                        </tr>" & vbCrLf)
+                Next
+
+                If _AddTableSeperator Then
+                    EmailBody.Append("                        <tr style='color: #000000; font-size: 11px; font-family: arial, verdana, helvetica;' class='heading'>" & vbCrLf)
+                    EmailBody.Append("                            <td colspan='" & table.Columns.Count & "' nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+                    EmailBody.Append("                        </tr>" & vbCrLf)
+                End If
+
+                RowCounter = 0
+
+                EmailBody.Append("                    </table>" & vbCrLf)
+                EmailBody.Append("                </td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+
+                ' Blank line
+                EmailBody.Append("            <tr>" & vbCrLf)
+                EmailBody.Append("                <td nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+
+                ' Blank line
+                EmailBody.Append("            <tr>" & vbCrLf)
+                EmailBody.Append("                <td nowrap='nowrap'>&nbsp;</td>" & vbCrLf)
+                EmailBody.Append("            </tr>" & vbCrLf)
+            End If
+        Next
+
+        If _EndNote.Length > 0 Then
+            ' EndNote
+            EmailBody.Append("            <tr>" & vbCrLf)
+            EmailBody.Append("                <td nowrap='nowrap'>" & _EndNote.Trim & "</td>" & vbCrLf)
+            EmailBody.Append("            </tr>" & vbCrLf)
+        End If
+
+        ' Footer
+        EmailBody.Append("            <tr>" & vbCrLf)
+
+        Dim _AssemblyInfo As System.Reflection.Assembly = System.Reflection.Assembly.GetExecutingAssembly
+
+        EmailBody.Append("                <td nowrap='nowrap' align='center'>For further details, please contact your Stratatel Administrator</td>" & vbCrLf)
+        EmailBody.Append("            </tr>" & vbCrLf)
+        EmailBody.Append("            <tr>" & vbCrLf)
+        EmailBody.Append("                <td nowrap='nowrap' align='center' style='font:6pt'>STE Ref: " & MyBase.Reference & "</td>" & vbCrLf)
+        EmailBody.Append("            </tr>" & vbCrLf)
+        EmailBody.Append("            <tr>" & vbCrLf)
+        EmailBody.Append("                <td nowrap='nowrap' align='center' style='font:6pt'>" & _AssemblyInfo.GetName.Name & " " & _AssemblyInfo.GetName.Version.ToString & "</td>" & vbCrLf)
+        EmailBody.Append("            </tr>" & vbCrLf)
+
+        EmailBody.Append("        </table>" & vbCrLf)
+        Return EmailBody.ToString
+    End Function
+
+    Private Sub CloneTable(ByVal SourceRow As DataRow, ByRef DestinationTable As DataTable)
+        DestinationTable.DataSet.Merge(SourceRow.Table, True, MissingSchemaAction.Add)
+    End Sub
+
+    Private Sub CloneDataRow(ByVal SourceRow As DataRow, ByRef DestinationTable As DataTable, ByVal RowNumber As Integer)
+        Dim Row As DataRow
+
+        Row = DestinationTable.NewRow()
+
+        Row.ItemArray = SourceRow.ItemArray
+
+        DestinationTable.Rows.Add(Row)
+
+    End Sub
+
+#End Region
+
+End Class

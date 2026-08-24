@@ -1,0 +1,995 @@
+﻿#Region " Imports "
+
+Imports System.Data.SqlClient
+Imports System.Reflection
+Imports System.Reflection.Assembly
+Imports FleetManager.Definitions
+
+#End Region
+
+Public Class Phone
+
+    'Private _CreateDate As Date = Now
+    Private _AccountNumber As String = ""        ' Account number
+    Private _Budget As Double = 0.0
+    Private _ChangeID As Int32 = 0               '
+    Private _ClientID As Int32 = 0               ' ID of client
+    Private _Comment As String = ""              '
+    Private _Connection As FMConnection
+    Private _CostCode As String = ""
+    Private _EndDate As Date = Date.MinValue          '    
+    Private _Feature0 As Int32 = 0               ' 
+    Private _Feature1 As Int32 = 0               ' 
+    Private _Feature2 As Int32 = 0               ' 
+    Private _Feature3 As Int32 = 0               ' 
+    Private _Feature4 As Int32 = 0               ' 
+    Private _Feature5 As Int32 = 0               ' 
+    Private _Feature6 As Int32 = 0               ' 
+    Private _Feature7 As Int32 = 0               ' 
+    Private _Feature8 As Int32 = 0               ' 
+    Private _Feature9 As Int32 = 0               ' 
+    Private _GUID As String = ""                 '
+    Private _ID As Int32 = 0                     ' ID of service
+    Private _IsShared As Boolean = False         ' Saved in Feature6 for FleetManager
+    Private _NetworkTypeID As Int32 = 0          ' Extension, Trunk etc.  See NetworkType in FleetManager
+    Private _Number As String = ""               ' Telephone number
+    Private _OrganisationalUnitID As Int32 = 0   '
+    Private _PABXSiteID As Int32 = 0             ' ID of owning PABX - mapped to Spare5 in FleetManager
+    Private _PABXSiteName As String = ""         ' 
+    Private _PersonID As Int32 = 0               ' ID of responsible person
+    Private _PlanID As Int32 = 1                 '
+    Private _PrimaryPhoneID As Int32 = 0         '
+    Private _ProviderID As Int32 = 0             ' ID of provider, e.g. Telstra, BT, Optus etc
+    Private _RebillingPlanID As Int32 = 0
+    Private _ServiceType As Int32 = 0            ' Referenced to ServiceType table, e.g. 2=mobile,4=fixed
+    Private _Silent As Boolean = False           ' This is the opposite of what is in FleetManager (ListInDirectory)
+    Private _Spare1 As String = ""
+    Private _Spare2 As String = ""
+    Private _Spare3 As String = ""
+    Private _Spare4 As String = ""
+    Private _Spare5 As String = ""
+    Private _StartDate As Date = Date.Now        ' 
+    Private _Status As Int32 = 1                 ' Active
+    Private _UID As Int32 = 0
+    Private _IsDirty As Boolean = False
+    Private _HasLoaded As Boolean = False
+
+#Region " Properties "
+
+    Public Property AccountNumber() As String
+        Get
+            Return _AccountNumber
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _AccountNumber))
+            _AccountNumber = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Budget() As Double
+        Get
+            Return _Budget
+        End Get
+        Set(ByVal value As Double)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Budget))
+            _Budget = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property ChangeID() As Int32
+        Get
+            Return _ChangeID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ChangeID))
+            _ChangeID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ClientID))
+            _ClientID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Comment() As String
+        Get
+            Return _Comment
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Comment))
+            _Comment = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Connection() As FMConnection
+        Get
+            Return _Connection
+        End Get
+        Set(ByVal value As FMConnection)
+            _Connection = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property CostCode() As String
+        Get
+            Return _CostCode
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _CostCode))
+            _CostCode = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property EndDate() As Date
+        Get
+            Return _EndDate
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _EndDate))
+            _EndDate = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature0() As Int32
+        Get
+            Return _Feature0
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature0))
+            _Feature0 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature1() As Int32
+        Get
+            Return _Feature1
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature1))
+            _Feature1 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature2() As Int32
+        Get
+            Return _Feature2
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature2))
+            _Feature2 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature3() As Int32
+        Get
+            Return _Feature3
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature3))
+            _Feature3 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature4() As Int32
+        Get
+            Return _Feature4
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature4))
+            _Feature4 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature5() As Int32
+        Get
+            Return _Feature5
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature5))
+            _Feature5 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature6() As Int32
+        Get
+            Return _Feature6
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature6))
+            _Feature6 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature7() As Int32
+        Get
+            Return _Feature7
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature7))
+            _Feature7 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature8() As Int32
+        Get
+            Return _Feature8
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature8))
+            _Feature8 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Feature9() As Int32
+        Get
+            Return _Feature9
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Feature9))
+            _Feature9 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property GUID() As String
+        Get
+            Return _GUID
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _GUID))
+            _GUID =REDACTED
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property IsDirty() As Boolean
+        Get
+            Return _IsDirty
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = value
+            If _IsDirty Then
+                'Dim Trace As New StackTrace : trace.writeline("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            End If
+        End Set
+    End Property
+
+    Public Property IsShared() As Boolean
+        Get
+            Return _IsShared
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _IsShared))
+            _IsShared = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property NetworkTypeID() As Int32
+        Get
+            Return _NetworkTypeID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _NetworkTypeID))
+            _NetworkTypeID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Number() As String
+        Get
+            Return _Number
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Number))
+            _Number = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property OrganisationalUnitID() As Int32
+        Get
+            Return _OrganisationalUnitID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _OrganisationalUnitID))
+            _OrganisationalUnitID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property PABXSiteID() As Int32
+        Get
+            Return _PABXSiteID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PABXSiteID))
+            _PABXSiteID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property PABXSiteName() As String
+        Get
+            Return _PABXSiteName
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PABXSiteName))
+            _PABXSiteName = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property PersonID() As Int32
+        Get
+            Return _PersonID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PersonID))
+            _PersonID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property PlanID() As Int32
+        Get
+            Return _PlanID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PlanID))
+            _PlanID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property PrimaryPhoneID() As Int32
+        Get
+            Return _PrimaryPhoneID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PrimaryPhoneID))
+            _PrimaryPhoneID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property ProviderID() As Int32
+        Get
+            Return _ProviderID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ProviderID))
+            _ProviderID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property RebillingPlanID() As Int32
+        Get
+            Return _RebillingPlanID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _RebillingPlanID))
+            _RebillingPlanID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property ID() As Int32
+        Get
+            Return _ID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ID))
+            _ID = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property ServiceType() As Int32
+        Get
+            Return _ServiceType
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ServiceType))
+            _ServiceType = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Silent() As Boolean
+        Get
+            Return _Silent
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Silent))
+            _Silent = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Spare1() As String
+        Get
+            Return _Spare1
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Spare1))
+            _Spare1 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Spare2() As String
+        Get
+            Return _Spare2
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Spare2))
+            _Spare2 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Spare3() As String
+        Get
+            Return _Spare3
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Spare3))
+            _Spare3 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Spare4() As String
+        Get
+            Return _Spare4
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Spare4))
+            _Spare4 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Spare5() As String
+        Get
+            Return _Spare5
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = Spare5))
+            _Spare5 = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property StartDate() As Date
+        Get
+            Return _StartDate
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _StartDate))
+            _StartDate = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property Status() As Int32
+        Get
+            Return _Status
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Status))
+            _Status = value
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+    Public Property UID() As Int32
+        Get
+            Return _UID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _UID))
+            _UID =REDACTED
+            'If _IsDirty Then
+            '    Dim Trace As New StackTrace : Debug.Print("IsDirty Property is now True. " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+            'End If
+        End Set
+    End Property
+
+#End Region
+
+    Public Sub New(ByVal ClientID As Int32)
+        If ClientID > 0 Then
+            ' TODO:  Search for this clientID.
+            _ClientID = ClientID
+        Else
+            Err.Raise(vbObjectError + 517, GetExecutingAssembly.GetName.Name, "Client ID not specified for FleetManager Connection.")
+        End If
+    End Sub
+
+    Public Sub New()
+
+    End Sub
+
+    Public Sub New(ByVal Connection As FMConnection)
+        _Connection = Connection
+    End Sub
+
+    Public Sub New(ByVal ClientID As Int32, ByVal Connection As FMConnection)
+        _ClientID = ClientID
+        _Connection = Connection
+    End Sub
+
+    ''' <summary>
+    ''' Load the Phone details
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Function Load(ByRef Service As Phone, Optional ByVal Behaviour As DefaultBehaviour = DefaultBehaviour.LoadOnly) As Boolean
+        Dim SQL_ID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        Try
+            If _Connection.ObjectIsValid Then
+
+                Service = _Connection.GetPhonebyUID(SQL_ID)
+
+                ' Set all the local variables
+                '_CreateDate = Service.CreateDate
+                _AccountNumber = Service.AccountNumber
+                _Budget = Service.Budget
+                _ChangeID = Service.ChangeID
+                _ClientID = Service.ClientID
+                _Comment = Service.Comment
+                _CostCode = Service.CostCode
+                _EndDate = Service.EndDate
+                _Feature0 = Service.Feature0
+                _Feature1 = Service.Feature1
+                _Feature2 = Service.Feature2
+                _Feature3 = Service.Feature3
+                _Feature4 = Service.Feature4
+                _Feature5 = Service.Feature5
+                _Feature6 = Service.Feature6
+                _Feature7 = Service.Feature7
+                _Feature8 = Service.Feature8
+                _Feature9 = Service.Feature9
+                _GUID =REDACTED
+                _ID = Service.ID
+                _NetworkTypeID = Service.NetworkTypeID
+                _Number = Service.Number
+                _OrganisationalUnitID = Service.OrganisationalUnitID
+                _PABXSiteID = Service.PABXSiteID
+                _PABXSiteName = Service.PABXSiteName
+                _PersonID = Service.PersonID
+                _PlanID = Service.PlanID
+                _PrimaryPhoneID = Service.PrimaryPhoneID
+                _ProviderID = Service.ProviderID
+                _RebillingPlanID = Service.RebillingPlanID
+                _ServiceType = Service.ServiceType
+                _Silent = Service.Silent
+                _Spare1 = Service.Spare1
+                _Spare2 = Service.Spare2
+                _Spare3 = Service.Spare3
+                _Spare4 = Service.Spare4
+                _Spare5 = Service.Spare5
+                _StartDate = Service.StartDate
+                _Status = Service.Status
+                _UID =REDACTED
+                _IsDirty = False
+                _HasLoaded = True
+                Return True
+            Else
+                ' Transfer the details we have to the new object
+                'Service.CreateDate = _CreateDate
+                Service.AccountNumber = _AccountNumber
+                Service.Budget = _Budget
+                Service.ChangeID = _ChangeID
+                Service.ClientID = _ClientID
+                Service.Comment = _Comment
+                Service.CostCode = _CostCode
+                Service.EndDate = _EndDate
+                Service.Feature0 = _Feature0
+                Service.Feature1 = _Feature1
+                Service.Feature2 = _Feature2
+                Service.Feature3 = _Feature3
+                Service.Feature4 = _Feature4
+                Service.Feature5 = _Feature5
+                Service.Feature6 = _Feature6
+                Service.Feature7 = _Feature7
+                Service.Feature8 = _Feature8
+                Service.Feature9 = _Feature9
+                Service.GUID =REDACTED
+                Service.ID = _ID
+                Service.NetworkTypeID = _NetworkTypeID
+                Service.Number = _Number
+                Service.OrganisationalUnitID = _OrganisationalUnitID
+                Service.PABXSiteID = _PABXSiteID
+                Service.PABXSiteName = _PABXSiteName
+                Service.PersonID = _PersonID
+                Service.PlanID = _PlanID
+                Service.PrimaryPhoneID = _PrimaryPhoneID
+                Service.ProviderID = _ProviderID
+                Service.RebillingPlanID = _RebillingPlanID
+                Service.ServiceType = _ServiceType
+                Service.Silent = _Silent
+                Service.Spare1 = _Spare1
+                Service.Spare2 = _Spare2
+                Service.Spare3 = _Spare3
+                Service.Spare4 = _Spare4
+                Service.Spare5 = _Spare5
+                Service.StartDate = _StartDate
+                Service.Status = _Status
+                Service.UID =REDACTED
+
+                Select Case Behaviour
+                    Case DefaultBehaviour.FailOnNotExist
+                        ' We are configured to raise an error if the Phone could not be found.
+                        Err.Raise(vbObjectError + 520, GetExecutingAssembly.GetName.Name, "The Phone referenced by this UID does not exist.")
+                        _IsDirty = False
+                        _HasLoaded = False
+                        Return False
+                    Case DefaultBehaviour.LoadOrCreate
+                        ' We are configured to create the Phone if it could not be found
+                        If Service.ClientID > 0 Then
+                            ' Now save it
+                            Service.UID =REDACTED
+                            _HasLoaded = True
+                        Else
+                            _HasLoaded = False
+                        End If
+                        _IsDirty = False
+
+                        Return True
+                    Case DefaultBehaviour.LoadOnly
+                        _IsDirty = False
+                        If SQL_ID > 0 Then _HasLoaded = True
+                        Return False
+                End Select
+            End If
+        Catch
+            _HasLoaded = False
+            Return False
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Load the Phone details
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Function Load(Optional ByVal Behaviour As DefaultBehaviour = DefaultBehaviour.LoadOnly) As Boolean
+        Dim SQL_ID As Int32 = 0
+        Dim Service As New Phone
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        Try
+            If _Connection.ObjectIsValid Then
+
+                Service = _Connection.GetPhonebyUID(SQL_ID)
+
+                ' Set all the local variables
+                '_CreateDate = Service.CreateDate
+                _AccountNumber = Service.AccountNumber
+                _Budget = Service.Budget
+                _ChangeID = Service.ChangeID
+                _ClientID = Service.ClientID
+                _Comment = Service.Comment
+                _CostCode = Service.CostCode
+                _EndDate = Service.EndDate
+                _Feature0 = Service.Feature0
+                _Feature1 = Service.Feature1
+                _Feature2 = Service.Feature2
+                _Feature3 = Service.Feature3
+                _Feature4 = Service.Feature4
+                _Feature5 = Service.Feature5
+                _Feature6 = Service.Feature6
+                _Feature7 = Service.Feature7
+                _Feature8 = Service.Feature8
+                _Feature9 = Service.Feature9
+                _GUID =REDACTED
+                _ID = Service.ID
+                _NetworkTypeID = Service.NetworkTypeID
+                _Number = Service.Number
+                _OrganisationalUnitID = Service.OrganisationalUnitID
+                _PABXSiteID = Service.PABXSiteID
+                _PABXSiteName = Service.PABXSiteName
+                _PersonID = Service.PersonID
+                _PlanID = Service.PlanID
+                _PrimaryPhoneID = Service.PrimaryPhoneID
+                _ProviderID = Service.ProviderID
+                _RebillingPlanID = Service.RebillingPlanID
+                _ServiceType = Service.ServiceType
+                _Silent = Service.Silent
+                _Spare1 = Service.Spare1
+                _Spare2 = Service.Spare2
+                _Spare3 = Service.Spare3
+                _Spare4 = Service.Spare4
+                _Spare5 = Service.Spare5
+                _StartDate = Service.StartDate
+                _Status = Service.Status
+                _UID =REDACTED
+                _IsDirty = False
+                _HasLoaded = True
+                Return True
+            Else
+                ' Transfer the details we have to the new object
+                'Service.CreateDate = _CreateDate
+                Service.AccountNumber = _AccountNumber
+                Service.Budget = _Budget
+                Service.ChangeID = _ChangeID
+                Service.ClientID = _ClientID
+                Service.Comment = _Comment
+                Service.CostCode = _CostCode
+                Service.EndDate = _EndDate
+                Service.Feature0 = _Feature0
+                Service.Feature1 = _Feature1
+                Service.Feature2 = _Feature2
+                Service.Feature3 = _Feature3
+                Service.Feature4 = _Feature4
+                Service.Feature5 = _Feature5
+                Service.Feature6 = _Feature6
+                Service.Feature7 = _Feature7
+                Service.Feature8 = _Feature8
+                Service.Feature9 = _Feature9
+                Service.GUID =REDACTED
+                Service.ID = _ID
+                Service.NetworkTypeID = _NetworkTypeID
+                Service.Number = _Number
+                Service.OrganisationalUnitID = _OrganisationalUnitID
+                Service.PABXSiteID = _PABXSiteID
+                Service.PABXSiteName = _PABXSiteName
+                Service.PersonID = _PersonID
+                Service.PlanID = _PlanID
+                Service.PrimaryPhoneID = _PrimaryPhoneID
+                Service.ProviderID = _ProviderID
+                Service.RebillingPlanID = _RebillingPlanID
+                Service.ServiceType = _ServiceType
+                Service.Silent = _Silent
+                Service.Spare1 = _Spare1
+                Service.Spare2 = _Spare2
+                Service.Spare3 = _Spare3
+                Service.Spare4 = _Spare4
+                Service.Spare5 = _Spare5
+                Service.StartDate = _StartDate
+                Service.Status = _Status
+                Service.UID =REDACTED
+
+                Select Case Behaviour
+                    Case DefaultBehaviour.FailOnNotExist
+                        ' We are configured to raise an error if the Phone could not be found.
+                        Err.Raise(vbObjectError + 520, GetExecutingAssembly.GetName.Name, "The Phone referenced by this UID does not exist.")
+                        _IsDirty = False
+                        _HasLoaded = False
+                        Return False
+                    Case DefaultBehaviour.LoadOrCreate
+                        ' We are configured to create the Phone if it could not be found
+                        If Service.ClientID > 0 Then
+                            ' Now save it
+                            Service.UID =REDACTED
+                            _HasLoaded = True
+                        Else
+                            _HasLoaded = False
+                        End If
+                        _IsDirty = False
+
+                        Return True
+                    Case DefaultBehaviour.LoadOnly
+                        _IsDirty = False
+                        If SQL_ID > 0 Then _HasLoaded = True
+                        Return False
+                End Select
+            End If
+        Catch
+            _HasLoaded = False
+            Return False
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Save the Phone details
+    ''' </summary>
+    ''' <returns>The ID of the Phone</returns>
+    ''' <remarks></remarks>
+    Public Function Save() As Int32
+        Dim SQL_ID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        If Not _Connection.ObjectIsValid Then
+            _ID = _Connection.Insert(Me)
+            'trace.writeline("The ID for this Phone is " & _ID)
+            Return _ID
+        Else
+            If _IsDirty Then
+                'trace.writeline("This Phone has to be saved")
+                _Connection.Update(Me)
+            Else
+                'trace.writeline("No requirement to save this Phone")
+            End If
+
+            _IsDirty = False
+            _ID = SQL_ID
+            Return _ID 'Me.ID
+        End If
+
+    End Function
+
+    ''' <summary>
+    ''' Save the Phone details
+    ''' </summary>
+    ''' <param name="SaveOperation">A ByRef OperationResult so that the caller knows what operation was performed (Update or Insert)</param>
+    ''' <returns>The ID of the Phone</returns>
+    ''' <remarks></remarks>
+    Public Function Save(ByRef SaveOperation As FMDatabase.OperationResult) As Int32
+        Dim SQL_ID As Int32 = 0
+
+        SQL_ID = _Connection.GetID(Me)
+
+        If Not _Connection.ObjectIsValid Then
+            _ID = _Connection.Insert(Me)
+
+            SaveOperation = FMDatabase.OperationResult.Insert
+            Return _ID
+        Else
+            If _IsDirty Then
+                _Connection.Update(Me)
+                SaveOperation = FMDatabase.OperationResult.Update
+            Else
+                SaveOperation = FMDatabase.OperationResult.None
+            End If
+
+            _IsDirty = False
+            _ID = SQL_ID
+            Return _ID
+        End If
+
+    End Function
+
+    ''' <summary>
+    ''' Delete the Phone
+    ''' </summary>
+    ''' <remarks></remarks>
+    <Obsolete("Not implemented")> _
+    Public Sub Delete()
+        Dim SQLID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' Find the phone
+        SQLID = _Connection.GetID(Me)
+
+        ' TODO: Delete the phone
+    End Sub
+
+    ''' <summary>
+    ''' Move the phone
+    ''' </summary>
+    ''' <remarks></remarks>
+    <Obsolete("Not implemented")> _
+    Public Sub Move()
+        Dim SQLID As Int32 = 0
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        ' Find the phone
+        SQLID = _Connection.GetID(Me)
+
+        ' TODO: Move the phone
+    End Sub
+
+    <Obsolete("Not implemented")> _
+    Public Sub Find()
+
+    End Sub
+
+End Class

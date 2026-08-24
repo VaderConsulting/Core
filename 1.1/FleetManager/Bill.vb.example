@@ -1,0 +1,481 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.1.0.1    07 Jun 11    DR          Enhancement   Based on .NET 3.5 version 1.0.15.25
+'
+#End Region
+
+#Region " Imports "
+
+Imports System.Data
+Imports System.Data.SqlClient
+Imports Core.FleetManager.FMDatabase
+Imports System.Reflection
+Imports System.Reflection.Assembly
+Imports Core.FleetManager.Definitions
+Imports Core.FleetManager
+Imports System.IO
+
+
+#End Region
+
+Public Class Bill
+
+#Region " Variable Declaration "
+
+    Private _AccountNumber As String = ""           '
+    Private _AccountType As Int32 = 0             '
+    Private _InvoiceNumber As String = ""           '
+    Private _AccountCode As String = ""             '
+    Private _OrganisationalUnitID As Int32 = 0       '
+    Private _ClientID As Int32 = 0                   ' ID of client
+    Private _Connection As FMConnection
+    Private _UID As Int32
+    Private _GUID As String = ""
+    Private _ServiceType As Int32
+    Private _ProviderID As Int32
+    Private _ServiceDescription As String = ""
+    Private _BillCollection As New Collections.SortedList
+    Private _ProviderList As New Collections.SortedList
+    Private _BillDate As DateTime
+    Private _CallObject As Calls
+    Private _Extension As String = ""
+    Private _CallType As String = ""
+    Private _CallDest As String = ""
+    Private _Site As String = ""
+    Private _AccountFormat As String = ""
+    Private _TotalExcharge As Double
+    Private _Database As FMDatabase
+    Private _ForceCarrierID As String = ""
+    Private _AddSiteCode As Boolean = True
+
+#End Region
+
+#Region " Properties "
+    Public Property AccountNumber() As String
+        Get
+            Return _AccountNumber
+        End Get
+        Set(ByVal value As String)
+            _AccountNumber = value
+        End Set
+    End Property
+
+    Public Property Connection() As FMConnection
+        Get
+            Return _Connection
+        End Get
+        Set(ByVal value As FMConnection)
+            _Connection = value
+        End Set
+    End Property
+
+    Public Property AccountType() As Int32
+        Get
+            Return _AccountType
+        End Get
+        Set(ByVal value As Int32)
+            _AccountType = value
+        End Set
+    End Property
+
+    Public Property ServiceType() As Int32
+        Get
+            Return _ServiceType
+        End Get
+        Set(ByVal value As Int32)
+            _ServiceType = value
+        End Set
+    End Property
+
+    Public Property BillDate() As DateTime
+        Get
+            Return _BillDate
+        End Get
+        Set(ByVal value As DateTime)
+            _BillDate = value
+        End Set
+    End Property
+
+    Public Property ServiceDescription() As String
+        Get
+            Return _ServiceDescription
+        End Get
+        Set(ByVal value As String)
+            _ServiceDescription = value
+        End Set
+    End Property
+
+    Public Property InvoiceNumber() As String
+        Get
+            Return _InvoiceNumber
+        End Get
+        Set(ByVal value As String)
+            _InvoiceNumber = value
+        End Set
+    End Property
+
+    Public Property ProviderID() As Int32
+        Get
+            Return _ProviderID
+        End Get
+        Set(ByVal value As Int32)
+            _ProviderID = value
+        End Set
+    End Property
+
+    Public Property AccountCode() As String
+        Get
+            Return _AccountCode
+        End Get
+        Set(ByVal value As String)
+            _AccountCode = value
+        End Set
+    End Property
+
+    Public Property OrganisationalUnitID() As Int32
+        Get
+            Return _OrganisationalUnitID
+        End Get
+        Set(ByVal value As Int32)
+            _OrganisationalUnitID = value
+        End Set
+    End Property
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            _ClientID = value
+        End Set
+    End Property
+
+    Public Property UID() As Int32
+        Get
+            Return _UID
+        End Get
+        Set(ByVal value As Int32)
+            _UID =REDACTED
+        End Set
+    End Property
+
+    Public Property GUID() As String
+        Get
+            Return _GUID
+        End Get
+        Set(ByVal value As String)
+            _GUID =REDACTED
+        End Set
+    End Property
+
+    Public Property Site() As String
+        Get
+            Return _Site
+        End Get
+        Set(ByVal value As String)
+            _Site = value
+        End Set
+    End Property
+
+    Public Property Extension() As String
+        Get
+            Return _Extension
+        End Get
+        Set(ByVal value As String)
+            _Extension = value
+        End Set
+    End Property
+
+    Public Property CallType() As String
+        Get
+            Return _CallType
+        End Get
+        Set(ByVal value As String)
+            _CallType = value
+        End Set
+    End Property
+
+    Public Property CallDest() As String
+        Get
+            Return _CallDest
+        End Get
+        Set(ByVal value As String)
+            _CallDest = value
+        End Set
+    End Property
+
+    Public Property Database() As FMDatabase
+        Get
+            Return _Database
+        End Get
+        Set(ByVal value As FMDatabase)
+            _Database = value
+        End Set
+    End Property
+
+    Public Property TotalExcharge() As Double
+        Get
+            Return _TotalExcharge
+        End Get
+        Set(ByVal value As Double)
+            _TotalExcharge = value
+        End Set
+    End Property
+
+    Public Property AccountNumberFormat() As String
+        Get
+            Return _AccountFormat
+        End Get
+        Set(ByVal value As String)
+            _AccountFormat = value
+        End Set
+    End Property
+
+    Public Property ForceCarrierID() As String
+        Get
+            Return _ForceCarrierID
+        End Get
+        Set(ByVal value As String)
+            _ForceCarrierID = value
+        End Set
+    End Property
+
+    Public Property AddSiteCode() As Boolean
+        Get
+            Return _AddSiteCode
+        End Get
+        Set(ByVal value As Boolean)
+            _AddSiteCode = value
+        End Set
+    End Property
+#End Region
+
+#Region " Public Methods "
+
+    ''' <summary>
+    ''' Insert Call into FleetManager Database
+    ''' </summary>
+    ''' <param name="Prefix"></param>
+    ''' <param name="CallData"></param>
+    ''' <returns>Status (if inserting a record is successfull) </returns>
+    ''' <remarks></remarks>
+    ''' 
+    Public Function AddCallData(ByVal Prefix As String, ByVal CallData As Calls) As Boolean
+        Dim ProcedureName As String = Prefix & "AddCallData"
+        Dim Successflag As Boolean = False
+
+        Dim DataCommand As SqlClient.SqlCommand
+        DataCommand = New SqlClient.SqlCommand(ProcedureName)
+
+        DataCommand.CommandType = CommandType.StoredProcedure
+        DataCommand.Parameters.Add("@BillID", SqlDbType.Int)
+        DataCommand.Parameters("@billID").Value = CallData.BillID
+        DataCommand.Parameters("@billID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@serviceID", SqlDbType.Int)
+        DataCommand.Parameters("@serviceID").Value = CallData.ServiceID
+        DataCommand.Parameters("@serviceID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@userID", SqlDbType.Int)
+        DataCommand.Parameters("@userID").Value = CallData.UserID
+        DataCommand.Parameters("@userID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@ProviderID", SqlDbType.Int)
+        DataCommand.Parameters("@ProviderID").Value = CallData.ProviderID
+        DataCommand.Parameters("@ProviderID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@orgUnitID", SqlDbType.Int)
+        DataCommand.Parameters("@orgUnitID").Value = CallData.OrgUnitID
+        DataCommand.Parameters("@orgUnitID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@serviceNO", SqlDbType.VarChar, 20)
+        DataCommand.Parameters("@serviceNO").Value = CallData.ServiceNumber.Trim.Replace(",", ";").Replace("'", "''")
+        DataCommand.Parameters("@serviceNO").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@calledNO", SqlDbType.VarChar, 15)
+        DataCommand.Parameters("@calledNO").Value = CallData.CallNo.Trim.Replace(",", ";").Replace("'", "''")
+        DataCommand.Parameters("@calledNO").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@callDate", SqlDbType.Char, 10)
+        DataCommand.Parameters("@callDate").Value = CallData.Calldate
+        DataCommand.Parameters("@callDate").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@callTime", SqlDbType.Char, 10)
+        DataCommand.Parameters("@callTime").Value = CallData.CallTime
+        DataCommand.Parameters("@callTime").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@location", SqlDbType.VarChar, 50)
+        DataCommand.Parameters("@location").Value = ""
+        DataCommand.Parameters("@location").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@TermCity", SqlDbType.VarChar, 50)
+        DataCommand.Parameters("@TermCity").Value = ""
+        DataCommand.Parameters("@TermCity").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@duration", SqlDbType.Int)
+        DataCommand.Parameters("@duration").Value = CallData.Duration
+        DataCommand.Parameters("@duration").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@totalGst", SqlDbType.Money)
+        DataCommand.Parameters("@totalGst").Value = CallData.TotalGST
+        DataCommand.Parameters("@totalGst").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@totalExCharge", SqlDbType.Money)
+        DataCommand.Parameters("@totalExCharge").Value = CallData.TotalExcharge
+        DataCommand.Parameters("@totalExCharge").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@totalIncCharge", SqlDbType.Money)
+        DataCommand.Parameters("@totalIncCharge").Value = CallData.TotalExcharge + CallData.TotalGST
+        DataCommand.Parameters("@totalIncCharge").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@OriginalGst", SqlDbType.Money)
+        DataCommand.Parameters("@OriginalGst").Value = CallData.TotalGST
+        DataCommand.Parameters("@OriginalGst").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@OriginalExCharge", SqlDbType.Money)
+        DataCommand.Parameters("@OriginalExCharge").Value = CallData.TotalExcharge
+        DataCommand.Parameters("@OriginalExCharge").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@OriginalIncCharge", SqlDbType.Money)
+        DataCommand.Parameters("@OriginalIncCharge").Value = CallData.TotalExcharge + CallData.TotalGST
+        DataCommand.Parameters("@OriginalIncCharge").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@callType", SqlDbType.Char, 10)
+        DataCommand.Parameters("@callType").Value = CallData.CallType.Trim.Replace(",", ";").Replace("'", "''")
+        DataCommand.Parameters("@callType").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@peak", SqlDbType.Char, 10)
+        DataCommand.Parameters("@peak").Value = ""
+        DataCommand.Parameters("@peak").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@IDD", SqlDbType.Char, 1)
+        DataCommand.Parameters("@IDD").Value = ""
+        DataCommand.Parameters("@IDD").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@PARtype", SqlDbType.Int)
+        DataCommand.Parameters("@PARtype").Value = CallData.ParType
+        DataCommand.Parameters("@PARtype").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@billingcodeid", SqlDbType.Int)
+        DataCommand.Parameters("@billingcodeid").Value = CallData.BillingCodeid
+        DataCommand.Parameters("@billingcodeid").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@GraphGroupid", SqlDbType.Int)
+        DataCommand.Parameters("@GraphGroupid").Value = CallData.GraphgroupID
+        DataCommand.Parameters("@GraphGroupid").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@clientID", SqlDbType.Int)
+        DataCommand.Parameters("@clientID").Value = _ClientID
+        DataCommand.Parameters("@clientID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@CallDirection", SqlDbType.VarChar, 20)
+        DataCommand.Parameters("@CallDirection").Value = ""
+        DataCommand.Parameters("@CallDirection").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@CallFlag", SqlDbType.VarChar, 12)
+        DataCommand.Parameters("@CallFlag").Value = CallData.CallFlag
+        DataCommand.Parameters("@CallFlag").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@State", SqlDbType.VarChar, 40)
+        DataCommand.Parameters("@State").Value = ""
+        DataCommand.Parameters("@State").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Country", SqlDbType.VarChar, 40)
+        DataCommand.Parameters("@Country").Value = ""
+        DataCommand.Parameters("@Country").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@CallTrunk", SqlDbType.VarChar, 16)
+        DataCommand.Parameters("@CallTrunk").Value = CallData.CallTrunk
+        DataCommand.Parameters("@CallTrunk").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@CallTruckGroup", SqlDbType.VarChar, 26)
+        DataCommand.Parameters("@CallTruckGroup").Value = CallData.CallTruckGroup
+        DataCommand.Parameters("@CallTruckGroup").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Accountcode", SqlDbType.VarChar, 16)
+        DataCommand.Parameters("@Accountcode").Value = CallData.AccountCode
+        DataCommand.Parameters("@Accountcode").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Authorisationcode", SqlDbType.VarChar, 16)
+        DataCommand.Parameters("@Authorisationcode").Value = CallData.AuthorisationCode
+        DataCommand.Parameters("@Authorisationcode").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@RateType", SqlDbType.VarChar, 10)
+        DataCommand.Parameters("@RateType").Value = CallData.Raretype
+        DataCommand.Parameters("@RateType").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Accesscode", SqlDbType.VarChar, 5)
+        DataCommand.Parameters("@Accesscode").Value = CallData.AccessCode
+        DataCommand.Parameters("@Accesscode").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Transferredcallid", SqlDbType.Int)
+        DataCommand.Parameters("@Transferredcallid").Value = 0
+        DataCommand.Parameters("@Transferredcallid").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Answerdelay", SqlDbType.Int)
+        DataCommand.Parameters("@Answerdelay").Value = CallData.AnswerDelay
+        DataCommand.Parameters("@Answerdelay").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Answered", SqlDbType.VarChar, 7)
+        DataCommand.Parameters("@Answered").Value = CallData.Answered
+        DataCommand.Parameters("@Answered").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@Site", SqlDbType.VarChar, 50)
+        DataCommand.Parameters("@Site").Value = CallData.Site
+        DataCommand.Parameters("@Site").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@TheDay", SqlDbType.TinyInt)
+        DataCommand.Parameters("@TheDay").Value = IIf(IsDate(CallData.Calldate), CDate(CallData.Calldate).Day, 0)
+        DataCommand.Parameters("@TheDay").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@TheMonth", SqlDbType.TinyInt)
+        DataCommand.Parameters("@TheMonth").Value = IIf(IsDate(CallData.Calldate), CDate(CallData.Calldate).Month, 0)
+        DataCommand.Parameters("@TheMonth").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@TheYear", SqlDbType.SmallInt)
+        DataCommand.Parameters("@TheYear").Value = IIf(IsDate(CallData.Calldate), CDate(CallData.Calldate).Year, 0)
+        DataCommand.Parameters("@TheYear").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@OfferingID", SqlDbType.Int)
+        DataCommand.Parameters("@OfferingID").Value = 0
+        DataCommand.Parameters("@OfferingID").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@ChargeType", SqlDbType.VarChar, 150)
+        DataCommand.Parameters("@ChargeType").Value = CallData.ChargeType.Trim.Replace(",", ";").Replace("'", "''")
+        DataCommand.Parameters("@ChargeType").Direction = ParameterDirection.Input
+
+        DataCommand.Parameters.Add("@dataUsageBytes", SqlDbType.BigInt)
+        DataCommand.Parameters("@DataUsageBytes").Value = 0
+        DataCommand.Parameters("@DataUsageBytes").Direction = ParameterDirection.Input
+
+        Try
+            _Database.ExecuteStoredProcedure(DataCommand, Definitions.FleetManagerDatabaseType.Data)
+            Successflag = True
+        Catch ex As Exception
+            Successflag = False
+        End Try
+
+        Return Successflag
+    End Function
+
+    Public Function GetClientAccountNumber(ByVal AccountPrefix As String, ByVal ProviderName As String) As String
+        Dim AccountNumber As String = ""
+        Dim StaticAccountPrefix As String = "accountprefix"
+        Dim StaticProviderName As String = "providername"
+
+        AccountNumber = _AccountFormat.ToLower.Replace(StaticAccountPrefix, AccountPrefix).Replace(StaticProviderName, ProviderName).Replace("[", "").Replace("]", "")
+
+        Return AccountNumber
+    End Function
+
+#End Region
+
+End Class

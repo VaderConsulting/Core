@@ -1,0 +1,315 @@
+﻿Imports FleetManager
+
+'This class will be moved in other project
+
+Public Class Calls
+
+    Private _BillID As Int32 = 0
+    Private _ServiceID As Int32 = 0
+    Private _ProviderID As Int32 = 0
+    Private _OrgUnitID As Int32 = 0
+    Private _ClientID As Int32
+    Private _AccountNumber As String = ""
+    Private _UserID As Int32
+    Private _ServiceNumber As String = ""
+    Private _ServiceType As Int32
+    Private _Database As FMDatabase
+    Private _CallNo As String = ""
+    Private _Calldate As String = ""
+    Private _CallTime As String = ""
+    Private _Duration As Int32
+    Private _TotalGST As Double
+    Private _TotalExchange As Double
+    Private _GraphgroupID As Int32
+    Private _CallType As String
+    Private _ParType As Int32
+    Private _BillingCodeid As Int32
+    Private _Connection As FMConnection
+    Private _CallFlag As String
+    Private _CallTrunk As String
+    Private _CallTruckGroup As String
+    Private _AccountCode As String
+    Private _AuthorisationCode As String
+    Private _Raretype As String
+    Private _AccessCode As String
+    Private _AnswerDelay As Int32
+    Private _Answered As String
+    Private _Site As String
+    Private _ChargeType As String
+    Private _Bill As Bill
+
+#Region " Properties "
+
+    Public Property BillID() As Int32
+        Get
+            Return _BillID
+        End Get
+        Set(ByVal value As Int32)
+            _BillID = value
+        End Set
+    End Property
+
+    Public Property ServiceID() As Int32
+        Get
+            Return _ServiceID
+        End Get
+        Set(ByVal value As Int32)
+            _ServiceID = value
+        End Set
+    End Property
+
+    Public Property UserID() As Int32
+        Get
+            Return _UserID
+        End Get
+        Set(ByVal value As Int32)
+            _UserID =REDACTED
+        End Set
+    End Property
+
+    Public Property ProviderID() As Int32
+        Get
+            Return _ProviderID
+        End Get
+        Set(ByVal value As Int32)
+            _ProviderID = value
+        End Set
+    End Property
+
+    Public Property OrgUnitID() As Int32
+        Get
+            Return _OrgUnitID
+        End Get
+        Set(ByVal value As Int32)
+            _OrgUnitID = value
+        End Set
+    End Property
+
+    Public Property ServiceNumber() As String
+        Get
+            Return _ServiceNumber
+        End Get
+        Set(ByVal value As String)
+            _ServiceNumber = value
+        End Set
+    End Property
+
+    Public Property CallNo() As String
+        Get
+            Return _CallNo
+        End Get
+        Set(ByVal value As String)
+            _CallNo = value
+        End Set
+    End Property
+
+    Public Property Calldate() As String
+        Get
+            Return _Calldate
+        End Get
+        Set(ByVal value As String)
+            _Calldate = value
+        End Set
+    End Property
+
+    Public Property CallTime() As String
+        Get
+            Return _CallTime
+        End Get
+        Set(ByVal value As String)
+            _CallTime = value
+        End Set
+    End Property
+
+    Public Property Duration() As Int32
+        Get
+            Return _Duration
+        End Get
+        Set(ByVal value As Int32)
+            _Duration = value
+        End Set
+    End Property
+
+    Public Property TotalGST() As Double
+        Get
+            Return _TotalGST
+        End Get
+        Set(ByVal value As Double)
+            _TotalGST = value
+        End Set
+    End Property
+
+    Public Property TotalExcharge() As Double
+        Get
+            Return _TotalExchange
+        End Get
+        Set(ByVal value As Double)
+            _TotalExchange = value
+        End Set
+    End Property
+
+    Public Property GraphgroupID() As Int32
+        Get
+            Return _GraphgroupID
+        End Get
+        Set(ByVal value As Int32)
+            _GraphgroupID = value
+        End Set
+    End Property
+
+    Public Property CallType() As String
+        Get
+            Return _CallType
+        End Get
+        Set(ByVal value As String)
+            _CallType = value
+        End Set
+    End Property
+
+    Public Property ParType() As Int32
+        Get
+            Return _ParType
+        End Get
+        Set(ByVal value As Int32)
+            _ParType = value
+        End Set
+    End Property
+
+    Public Property BillingCodeid() As Int32
+        Get
+            Return _BillingCodeid
+        End Get
+        Set(ByVal value As Int32)
+            _BillingCodeid = value
+        End Set
+    End Property
+
+    Public Property CallFlag() As String
+        Get
+            Return _CallFlag
+        End Get
+        Set(ByVal value As String)
+            _CallFlag = value
+        End Set
+    End Property
+
+    Public Property CallTrunk() As String
+        Get
+            Return _CallTrunk
+        End Get
+        Set(ByVal value As String)
+            _CallTrunk = value
+        End Set
+    End Property
+
+    Public Property CallTruckGroup() As String
+        Get
+            Return _CallTruckGroup
+        End Get
+        Set(ByVal value As String)
+            _CallTruckGroup = value
+        End Set
+    End Property
+
+    Public Property AccountCode() As String
+        Get
+            Return _AccountCode
+        End Get
+        Set(ByVal value As String)
+            _AccountCode = value
+        End Set
+    End Property
+
+    Public Property AuthorisationCode() As String
+        Get
+            Return _AuthorisationCode
+        End Get
+        Set(ByVal value As String)
+            _AuthorisationCode = value
+        End Set
+    End Property
+
+    Public Property Raretype() As String
+        Get
+            Return _Raretype
+        End Get
+        Set(ByVal value As String)
+            _Raretype = value
+        End Set
+    End Property
+
+    Public Property AccessCode() As String
+        Get
+            Return _AccessCode
+        End Get
+        Set(ByVal value As String)
+            _AccessCode = value
+        End Set
+    End Property
+
+    Public Property AnswerDelay() As Int32
+        Get
+            Return _AnswerDelay
+        End Get
+        Set(ByVal value As Int32)
+            _AnswerDelay = value
+        End Set
+    End Property
+
+    Public Property Answered() As String
+        Get
+            Return _Answered
+        End Get
+        Set(ByVal value As String)
+            _Answered = value
+        End Set
+    End Property
+
+    Public Property Site() As String
+        Get
+            Return _Site
+        End Get
+        Set(ByVal value As String)
+            _Site = value
+        End Set
+    End Property
+
+    Public Property ChargeType() As String
+        Get
+            Return _ChargeType
+        End Get
+        Set(ByVal value As String)
+            _ChargeType = value
+        End Set
+    End Property
+
+    Public Property Bill() As Bill
+        Get
+            Return _Bill
+        End Get
+        Set(ByVal value As Bill)
+            _Bill = value
+        End Set
+    End Property
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            _ClientID = value
+        End Set
+    End Property
+
+    Public Property Database() As FMDatabase
+        Get
+            Return _Database
+        End Get
+        Set(ByVal value As FMDatabase)
+            _Database = value
+        End Set
+    End Property
+
+#End Region
+
+End Class

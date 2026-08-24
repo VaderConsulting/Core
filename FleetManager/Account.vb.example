@@ -1,0 +1,72 @@
+﻿Public Class Account
+
+#Region " Declaration "
+
+    Private _ClientID As Int32 = 0
+    Private _AccountNumber As String = ""
+    Private _BillType As Int32 = 0
+    Private _ProviderID As Int32 = 0
+    Private _UserID As Int32 = 0
+    Private _OrgUnitID As Int32 = 0
+
+#End Region
+
+#Region " Properties "
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            _ClientID = value
+        End Set
+    End Property
+
+    Public Property AccountNumber() As String
+        Get
+            Return _AccountNumber
+        End Get
+        Set(ByVal value As String)
+            _AccountNumber = value
+        End Set
+    End Property
+
+    Public Property BillType() As Int32
+        Get
+            Return _BillType
+        End Get
+        Set(ByVal value As Int32)
+            _BillType = value
+        End Set
+    End Property
+
+    Public Property ProviderID() As Int32
+        Get
+            Return _ProviderID
+        End Get
+        Set(ByVal value As Int32)
+            _ProviderID = value
+        End Set
+    End Property
+
+    Public Property OrgUnitID() As Int32
+        Get
+            Return _OrgUnitID
+        End Get
+        Set(ByVal value As Int32)
+            _OrgUnitID = value
+        End Set
+    End Property
+
+    Public Property UserID() As Int32
+        Get
+            Return _UserID
+        End Get
+        Set(ByVal value As Int32)
+            _UserID =REDACTED
+        End Set
+    End Property
+
+#End Region
+    
+End Class

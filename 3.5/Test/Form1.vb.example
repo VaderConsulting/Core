@@ -1,0 +1,363 @@
+﻿Imports Core
+Imports Core.Common
+Imports Core.Common.Functions
+Imports Core.FileTransfer
+Imports Core.FileTransfer.FTP
+Imports Core.Compression.Zip
+
+Public Class Form1
+
+    Public Sub StartHere()
+        'Dim Compressed As Boolean = Compression.Zip.CompressFile("c:\temp\updateself.exe", "c:\temp\zipped.zip", False, True)
+
+        'Dim Result As Boolean = SendFile("C:\temp\output.csv", "Test Client")
+        'Dim x As New Collection
+        'Dim anobject As New Collection
+
+        'anobject.Add("Blurgh")
+
+        'x.Add(anobject)
+        'x.Add("Barney")
+
+        'Dim y As Collection = x.DeepCopy
+
+        'y.Add("Wilma")
+
+        'Debug.Print(Licensing.Functions.CheckACURegistrationCodeDate("GF3S3AjoAQHxu5wR/vUHiv04f0n2+pWuGV/+Cs3VUSP3jeDBHeplemSu8r//mell").ToString)
+
+
+        'Debug.Print(Licensing.Functions.GetACURegistrationCode("ANU", "01/01/2010", "01/01/2011"))
+
+        Dim AnEmailAddress As String = "redacted@example.com"
+        Dim EmailAddress(10) As String
+
+        ' 3 usage scenario's:
+
+        ' 1. Check if it is valid:
+        Dim Valid As Boolean = IsValidEmailAddress(AnEmailAddress)
+
+        ' 2. Perform an inline check for validity
+        For Counter As Int32 = 1 To 10
+            If IsValidEmailAddress(EmailAddress(Counter)) Then SendEmail(AnEmailAddress)
+        Next
+
+        ' 3. Use extension methods to check the string
+        If AnEmailAddress.IsValidEmailAddress Then SendEmail(AnEmailAddress)
+
+    End Sub
+
+    Private Sub SendEmail(ByVal ValidatedEmailAddress)
+
+
+    End Sub
+
+    Private Function SendFile(ByVal SourceFilename As String, ByVal DestinationFolder As String) As Boolean
+        Dim Result As Boolean = True
+        Dim ZipFilename As String = SourceFilename.Substring(0, SourceFilename.LastIndexOf(".")) & ".zip"
+
+        ' TODO:  Use multiple threads so this occurs in the background
+        Using oFTP As New Core.FileTransfer.FTP
+            oFTP.UseCompression = False
+            oFTP.DebugMode = True
+            oFTP.RemoteHost = "Firefly"
+            oFTP.RemoteUsername = "REDACTED"
+            oFTP.RemotePassword = "REDACTED"
+            oFTP.RemotePath = DestinationFolder
+            oFTP.RemotePort = 21
+
+            Try
+                oFTP.Login()
+                oFTP.SetMode(TransferMode.Binary)
+                oFTP.Upload(SourceFilename, ZipFilename, ResumeMode.On)
+
+                oFTP.Close()
+                Result = True
+            Catch ex As Exception
+                Result = False
+            End Try
+        End Using
+        Return Result
+    End Function
+
+    Private Sub Form1_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        'Dim BlockingValue As Double = 0.01
+        'Dim BusyHourErlangs As Double = 0.5
+
+        'Trace.WriteLine(Math.Functions.TrunksRequired(BusyHourErlangs, BlockingValue))
+
+    End Sub
+
+    Private Sub btnEmail_Click(sender As System.Object, e As System.EventArgs) Handles btnEmail.Click
+        Dim EmailMessage As New Email.Message
+
+        ' Mail Server and From Address are required
+        '
+        EmailMessage.MailServer = "mail.stratatel.com.au"
+        '
+        ' When you specify an Email Address to send to or from, you cannot provide a string - you must provide an EmailAddress.
+        ' The provided string is always checked if it is a valid email address.  If it is not, an ApplicationException will be raised.
+        '
+        ' For example if you perform the following, when the application runs, this line will create a runtime error:
+        ' EmailMessage.FromAddress = "blergh"
+        '
+        ' The solution is of course to ensure only a valid address is specified, or if the address is specified at Runtime,
+        ' wrap only this code in a Try-Catch.
+        '
+        ' For example (using a fictitious GetEmailAddressString Function):
+        ' TheEmailAddress = GetEmailAddressString() ' <--- retrieves a string representing an email address from the database
+        '
+        ' Try
+        '     EmailMessage.FromAddress = New EmailAddress(TheEmailAddress)
+        ' Catch ex as ApplicationException
+        '     LogMessage("Invalid email address specified:" & TheEmailAddress)
+        ' Finally
+        '
+        ' ===============================================================================================================
+        '
+        ' To specify an EmailAddress, you can either pre-create the variable, or you can perform an in-line declaration
+        ' For example, the following are both valid.
+        ' Example 1:
+        ' Dim FromAddress as New EmailAddress("redacted@example.com")
+        '
+        ' EmailMessage.FromAddress = FromAddress
+        '
+        ' Example 2:
+        ' EmailMessage.FromAddress = New Email.Address("redacted@example.com")
+        '
+        EmailMessage.FromAddress = New Email.Address("redacted@example.com")
+        '
+        ' ===============================================================================================================
+        '
+        ' Some parameters are optional.
+        ' For example, you do not need a To Address if you have either a CC Address or a BCC Address.
+        ' However, you must have at least one of either a CC, BCC or To address specified.
+        '
+        EmailMessage.ToAddresses.Add(New Email.Address("redacted@example.com"))
+        EmailMessage.CCAddresses.Add(New Email.Address("redacted@example.com"))
+        EmailMessage.BCCAddresses.Add(New Email.Address("redacted@example.com"))
+        '
+        ' ===============================================================================================================
+        ' Multiple addresses can be specified (except for the From Address)
+        'EmailMessage.CCAddresses.Add(New Email.Address("redacted@example.com"))
+        'EmailMessage.CCAddresses.Add(New Email.Address("redacted@example.com"))
+        '
+        ' ===============================================================================================================
+        '
+        ' Attachments are optional
+        ' When an Attachment is specified, the existance of the file is checked before it is added.  An exception may be
+        ' raised if the appropriate Option has been set.
+        '
+        EmailMessage.Attachments.Add("c:\bar.emf")
+        '
+        ' ===============================================================================================================
+        '
+        ' There are other options that can be set against the message to control various aspects
+        ' For each of these, the default value is False.
+        '
+        ' Dim EmailOptions As New Email.Options
+        '
+        ' EmailOptions.AttachmentCouldNotBeAddedIsException = False
+        ' EmailOptions.AttachmentNotFoundIsException = False
+        ' EmailOptions.EmptyAddresseesIsException = False
+        ' EmailOptions.NoSubjectIsException = False
+        ' EmailOptions.SendFailureIsException = False
+        ' EmailMessage.MailOptions = EmailOptions
+        '
+        ' ===============================================================================================================
+
+        EmailMessage.MailSubject = "Test email"
+        EmailMessage.Format = Email.Message.MailFormat.Text
+        EmailMessage.MailBody = "This is a test.  It should work"
+
+        Dim SendResult As Boolean = False
+
+        Try
+            SendResult = EmailMessage.Send()
+        Catch ex As ApplicationException
+            ' Our exceptions will be caught here
+            Trace.WriteLine("An application specific error has occurred.  The Error was " & ex.ToString)
+
+            Select Case ex.Message
+                Case "At least one of To, CC or BCC Address must be specified"
+                    ' Ensure you have at least one of these
+                Case "Could not add Attachment"
+                    ' There was an error adding the attachment.  Security?
+                    ' Check the InnerException property for further information
+                Case "Attachment not found"
+                    ' The filename specified could not be found
+                Case "No Subject specified"
+                    ' No subject (Add one)
+                Case "Failed to send email"
+                    ' A number of attempts were made to send the email, but it still could not be sent
+                    ' Check the InnerException property for further information
+                Case "No From Address specified"
+                    ' No From Address (Add one)
+                Case "No Mail Server specified"
+                    ' No Mail Server (Specify it)
+                Case "Mail object not initialised"
+                    ' The Mail object could not be initialised.
+            End Select
+
+        Catch ex As Exception
+            ' Generic exceptions will be caught here
+            Trace.WriteLine("An unexpected error has occurred.  The error was: " & ex.ToString)
+        End Try
+
+        ' Finally, clean up
+        EmailMessage.Dispose()
+
+    End Sub
+
+    Private Sub btnStatusEmail_Click(sender As System.Object, e As System.EventArgs) Handles btnStatusEmail.Click
+        Dim Email As New Core.StatusEmail.Message
+        Dim EmailTo As New Email.Address("redacted@example.com")
+        Dim EmailFrom As New Email.Address("redacted@example.com")
+
+        Email.MailServer = "mail.stratatel.com.au"
+        Email.FromAddress.SetEmailAddress(EmailFrom.Value, True)
+        Email.ToAddresses.Add(EmailTo.Value)
+
+        Email.CCAddresses.Add(EmailTo.Value)
+        Email.CCAddresses.Add("redacted@example.com")
+
+        Email.BCCAddresses.Add(EmailTo.Value)
+        Email.BCCAddresses.Add("redacted@example.com")
+
+        Email.MailSubject = "This is the Mail Subject"
+
+        Email.ClientName = "The Client Name goes here"
+        Email.StatusMessage = "The Email Status Message goes here"
+
+        Email.Title = "The Report Title goes here"
+        'Email.StatusTotalRowIncluded = False
+        'Email.ExceptionTotalRowIncluded = False
+
+        ' ===============================================
+        Dim Row As DataRow
+
+        ' Status 1
+        Dim ResultsTable1 As New DataTable
+
+        ResultsTable1.Columns.Add(New DataColumn("Column 1"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 2"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 3"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 4"))
+        ResultsTable1.Columns.Add(New DataColumn("Column 5"))
+
+        Row = ResultsTable1.NewRow
+
+        Row(0) = "Value 1"
+        Row(1) = "Value 2"
+        Row(2) = "Value 3"
+        Row(3) = "Value 4"
+        Row(4) = "Value 5"
+        ResultsTable1.Rows.Add(Row)
+
+        Row = Nothing
+
+        Row = ResultsTable1.NewRow
+
+        Row(0) = "Value 6"
+        Row(1) = "Value 7"
+        Row(2) = "Value 8"
+        Row(3) = "Value 9"
+        Row(4) = "Value 10"
+        ResultsTable1.Rows.Add(Row)
+
+        Row = Nothing
+
+        Row = ResultsTable1.NewRow
+
+        Row(0) = "Total 1"
+        Row(1) = "Total 2"
+        Row(2) = "Total 3"
+        Row(3) = "Total 4"
+        Row(4) = "Total 5"
+        ResultsTable1.Rows.Add(Row)
+
+        Email.StatusDataSet.Tables(0).TableName = "Messages 1"
+
+        Email.AddStatusRow(0, Row)
+        ' ===============================================
+        ' Status 2
+        Dim ResultsTable2 As New DataTable
+
+        ResultsTable2.Columns.Add(New DataColumn("Column 1"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 2"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 3"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 4"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 5"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 6"))
+        ResultsTable2.Columns.Add(New DataColumn("Column 7"))
+
+        Row = ResultsTable2.NewRow
+
+        Row(0) = "Value 1"
+        Row(1) = "Value 2"
+        Row(2) = "Value 3"
+        Row(3) = "Value 4"
+        Row(4) = "Value 5"
+        Row(5) = "Value 6"
+        Row(6) = "Value 7"
+        ResultsTable2.Rows.Add(Row)
+
+        Row = Nothing
+
+        Row = ResultsTable2.NewRow
+
+        Row(0) = "Total 1"
+        Row(1) = "Total 2"
+        Row(2) = "Total 3"
+        Row(3) = "Total 4"
+        Row(4) = "Total 5"
+        Row(5) = "Total 6"
+        Row(6) = "Total 7"
+        ResultsTable2.Rows.Add(Row)
+
+        Email.AddStatusTable("Messages 2")
+        'Email.StatusDataSet.Tables(1).TableName = "Messages 2"
+
+        Email.AddStatusRow(1, Row)
+        ' ===============================================
+        ' Exceptions
+        Dim ExceptionTable As New DataTable
+
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 1"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 2"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 3"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 4"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 5"))
+        ExceptionTable.Columns.Add(New DataColumn("Exception Column 6"))
+
+        Row = ExceptionTable.NewRow
+
+        Row(0) = "Exception 1"
+        Row(1) = "Exception 2"
+        Row(2) = "Exception 3"
+        Row(3) = "Exception 4"
+        Row(4) = "Exception 5"
+        Row(5) = "Exception 6"
+
+        ExceptionTable.Rows.Add(Row)
+
+        Row = ExceptionTable.NewRow
+
+        Row(0) = "Total 1"
+        Row(1) = "Total 2"
+        Row(2) = "Total 3"
+        Row(3) = "Total 4"
+        Row(4) = "Total 5"
+        Row(5) = "Total 6"
+
+        ExceptionTable.Rows.Add(Row)
+
+        Email.AddExceptionRow(Row)
+        ' ===============================================
+
+        Email.Status = StatusEmail.Message.EmailStatus.SuccessWithExceptions
+        Email.Send()
+
+
+    End Sub
+End Class
+

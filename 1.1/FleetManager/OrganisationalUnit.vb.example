@@ -1,0 +1,982 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.1.0.1    07 Jun 11    DR          Enhancement   Based on .NET 3.5 version 1.0.15.25
+' 1.1.1.2    07 Jun 11    DR          Enhancement   Added Custom5-20
+'
+#End Region
+
+#Region " Imports "
+
+Imports System.Reflection
+Imports System.Reflection.Assembly
+Imports Core.FleetManager.Definitions
+Imports System.Diagnostics
+
+#End Region
+
+Public Class OrganisationalUnit
+
+#Region " Private variables "
+
+    Private _Budget As Double = 0.0
+    Private _ChangeID As Int32 = 0
+    Private _ClientID As Int32 = 0
+    Private _Connection As FMConnection
+    Private _CostCode As String = ""
+    Private _Country As String = ""
+    Private _Custom1 As String = ""
+    Private _Custom2 As String = ""
+    Private _Custom3 As String = ""
+    Private _Custom4 As String = ""
+    Private _Custom5 As String = ""
+    Private _Custom6 As String = ""
+    Private _Custom7 As String = ""
+    Private _Custom8 As String = ""
+    Private _Custom9 As String = ""
+    Private _Custom10 As String = ""
+    Private _Custom11 As String = ""
+    Private _Custom12 As String = ""
+    Private _Custom13 As String = ""
+    Private _Custom14 As String = ""
+    Private _Custom15 As String = ""
+    Private _Custom16 As String = ""
+    Private _Custom17 As String = ""
+    Private _Custom18 As String = ""
+    Private _Custom19 As String = ""
+    Private _Custom20 As String = ""
+    Private _DefaultPersonBudget As Double = 0.0
+    Private _EndDate As Date = Date.Now
+    Private _GUID As String = ""
+    Private _HasLoaded As Boolean = False
+    Private _ID As Int32 = 0
+    Private _IsDirty As Boolean = False
+    Private _LDAPPath As String = ""
+    Private _Name As String = ""
+    Private _ParentOrganisationalUnitGUID As String = ""
+    Private _ParentOrganisationalUnitID As Int32 = 0
+    Private _PostCode As String = ""
+    Private _RebillingPlanID As Int32 = 0
+    Private _Silent As Boolean = False           ' This is the opposite of what is in FleetManager (ListInDirectory)
+    Private _StartDate As Date = Date.Now
+    Private _State As Integer = 1
+    Private _StreetAddress As String = ""
+    Private _Suburb As String = ""
+    Private _UID As Int32 = 0
+
+    Private _AccountCode As String = ""
+    Private _OrgUnitLevel As Int32 = 0
+    Private _SupervisorName As String = ""
+    Private _SupervisorEmail As String = ""
+    Private _SupervisorUserID As String = ""
+
+#End Region
+
+#Region " Properties "
+
+    Public Property UID() As Int32
+        Get
+            Return _UID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _UID))
+            _UID =REDACTED
+        End Set
+    End Property
+
+    Public Property StreetAddress() As String
+        Get
+            Return _StreetAddress
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _StreetAddress))
+            _StreetAddress = value
+        End Set
+    End Property
+
+    Public Property Suburb() As String
+        Get
+            Return _Suburb
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Suburb))
+            _Suburb = value
+        End Set
+    End Property
+
+    Public Property State() As Int32
+        Get
+            Return _State
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _State))
+            _State = value
+        End Set
+    End Property
+
+    Public Property Country() As String
+        Get
+            Return _Country
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Country))
+            _Country = value
+        End Set
+    End Property
+
+    Public Property PostCode() As String
+        Get
+            Return _PostCode
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _PostCode))
+            _PostCode = value
+        End Set
+    End Property
+
+    Public Property StartDate() As Date
+        Get
+            Return _StartDate
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _StartDate))
+            _StartDate = value
+        End Set
+    End Property
+
+    Public Property EndDate() As Date
+        Get
+            Return _EndDate
+        End Get
+        Set(ByVal value As Date)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _EndDate))
+            _EndDate = value
+        End Set
+    End Property
+
+    Public Property RebillingPlanID() As Int32
+        Get
+            Return _RebillingPlanID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _RebillingPlanID))
+            _RebillingPlanID = value
+        End Set
+    End Property
+
+    Public Property GUID() As String
+        Get
+            Return _GUID
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _GUID))
+            _GUID =REDACTED
+        End Set
+    End Property
+
+    Public Property CostCode() As String
+        Get
+            Return _CostCode
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _CostCode))
+            If _CostCode.Length >= 50 Then
+                _CostCode = value.Substring(0, 50)
+            Else
+                _CostCode = value
+            End If
+
+        End Set
+    End Property
+
+    Public Property Budget() As Double
+        Get
+            Return _Budget
+        End Get
+        Set(ByVal value As Double)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Budget))
+            _Budget = value
+        End Set
+    End Property
+
+    Public Property DefaultPersonBudget() As Double
+        Get
+            Return _DefaultPersonBudget
+        End Get
+        Set(ByVal value As Double)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _DefaultPersonBudget))
+            _DefaultPersonBudget = value
+        End Set
+    End Property
+
+    Public Property ChangeID() As Int32
+        Get
+            Return _ChangeID
+        End Get
+        Set(ByVal value As Int32)
+            _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ChangeID))
+            _ChangeID = value
+        End Set
+    End Property
+
+    Public Property ID() As Int32
+        Get
+            Return _ID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ID))
+            _ID = value
+        End Set
+    End Property
+
+    Public Property Name() As String
+        Get
+            Return _Name
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Name))
+            If value.Length >= 150 Then
+                _Name = value.Substring(0, 150)
+            Else
+                _Name = value
+            End If
+        End Set
+    End Property
+
+    Public Property ClientID() As Int32
+        Get
+            Return _ClientID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ClientID))
+            _ClientID = value
+        End Set
+    End Property
+
+    Public Property ParentOrganisationalUnitID() As Int32
+        Get
+            Return _ParentOrganisationalUnitID
+        End Get
+        Set(ByVal value As Int32)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ParentOrganisationalUnitID))
+            _ParentOrganisationalUnitID = value
+        End Set
+    End Property
+
+    Public Property ParentOrganisationalUnitGUID() As String
+        Get
+            Return _ParentOrganisationalUnitGUID
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _ParentOrganisationalUnitGUID))
+            _ParentOrganisationalUnitGUID =REDACTED
+        End Set
+    End Property
+
+    Public Property Silent() As Boolean
+        Get
+            Return _Silent
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Silent))
+            _Silent = value
+        End Set
+    End Property
+
+    Public Property Custom1() As String
+        Get
+            Return _Custom1
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom1))
+            _Custom1 = value
+        End Set
+    End Property
+
+    Public Property Custom2() As String
+        Get
+            Return _Custom2
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom2))
+            _Custom2 = value
+        End Set
+    End Property
+
+    Public Property Custom3() As String
+        Get
+            Return _Custom3
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom3))
+            _Custom3 = value
+        End Set
+    End Property
+
+    Public Property Custom4() As String
+        Get
+            Return _Custom4
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom4))
+            _Custom4 = value
+        End Set
+    End Property
+
+    Public Property Custom5() As String
+        Get
+            Return _Custom5
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom5))
+            _Custom5 = value
+        End Set
+    End Property
+
+    Public Property Custom6() As String
+        Get
+            Return _Custom6
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom6))
+            _Custom6 = value
+        End Set
+    End Property
+
+    Public Property Custom7() As String
+        Get
+            Return _Custom7
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom7))
+            _Custom7 = value
+        End Set
+    End Property
+
+    Public Property Custom8() As String
+        Get
+            Return _Custom8
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom8))
+            _Custom8 = value
+        End Set
+    End Property
+
+    Public Property Custom9() As String
+        Get
+            Return _Custom9
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom9))
+            _Custom9 = value
+        End Set
+    End Property
+
+    Public Property Custom10() As String
+        Get
+            Return _Custom10
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom10))
+            _Custom10 = value
+        End Set
+    End Property
+
+    Public Property Custom11() As String
+        Get
+            Return _Custom11
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom11))
+            _Custom11 = value
+        End Set
+    End Property
+
+    Public Property Custom12() As String
+        Get
+            Return _Custom12
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom12))
+            _Custom12 = value
+        End Set
+    End Property
+
+    Public Property Custom13() As String
+        Get
+            Return _Custom13
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom13))
+            _Custom13 = value
+        End Set
+    End Property
+
+    Public Property Custom14() As String
+        Get
+            Return _Custom14
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom14))
+            _Custom14 = value
+        End Set
+    End Property
+
+    Public Property Custom15() As String
+        Get
+            Return _Custom15
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom15))
+            _Custom15 = value
+        End Set
+    End Property
+
+    Public Property Custom16() As String
+        Get
+            Return _Custom16
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom16))
+            _Custom16 = value
+        End Set
+    End Property
+
+    Public Property Custom17() As String
+        Get
+            Return _Custom17
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom17))
+            _Custom17 = value
+        End Set
+    End Property
+
+    Public Property Custom18() As String
+        Get
+            Return _Custom18
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom18))
+            _Custom18 = value
+        End Set
+    End Property
+
+    Public Property Custom19() As String
+        Get
+            Return _Custom19
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom19))
+            _Custom19 = value
+        End Set
+    End Property
+
+    Public Property Custom20() As String
+        Get
+            Return _Custom20
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _Custom20))
+            _Custom20 = value
+        End Set
+    End Property
+
+    Public Property Connection() As FMConnection
+        Get
+            Return _Connection
+        End Get
+        Set(ByVal value As FMConnection)
+            _Connection = value
+        End Set
+    End Property
+
+    Public Property IsDirty() As Boolean
+        Get
+            Return _IsDirty
+        End Get
+        Set(ByVal value As Boolean)
+            If _IsDirty = False Then _IsDirty = value
+        End Set
+    End Property
+
+    Public Property LDAPPath() As String
+        Get
+            Return _LDAPPath
+        End Get
+        Set(ByVal value As String)
+            If _IsDirty = False Then _IsDirty = _HasLoaded And (_IsDirty Or Not (value = _LDAPPath))
+            _LDAPPath = value
+        End Set
+    End Property
+
+    Public ReadOnly Property HasLoaded() As Boolean
+        Get
+            Return _HasLoaded
+        End Get
+    End Property
+
+#End Region
+
+#Region " Constructors"
+
+    Public Sub New()
+
+    End Sub
+
+    Public Sub New(ByVal ClientID As Int32)
+        If ClientID > 0 Then
+            ' TODO:  Search for this clientID.
+            _ClientID = ClientID
+        Else
+            Err.Raise(vbObjectError + 515, GetExecutingAssembly.GetName.Name, "Client ID not specified for FleetManager Connection.")
+        End If
+    End Sub
+
+    Public Sub New(ByVal Connection As FMConnection)
+        _Connection = Connection
+    End Sub
+
+    Public Sub New(ByVal ClientID As Int32, ByVal Connection As FMConnection)
+        _ClientID = ClientID
+        _Connection = Connection
+    End Sub
+
+#End Region
+
+#Region " Public Methods "
+
+    ''' <summary>
+    ''' Save the OU details
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Function Save(ByRef SaveOperation As FMDatabase.OperationResult) As Int32
+        Dim SQL_ID As Int32 = 0
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        If Not _Connection.ObjectIsValid Then
+            _ID = _Connection.Insert(Me)
+            'trace.writeline("The ID for this OU is " & _ID)
+            SaveOperation = FMDatabase.OperationResult.Insert
+            Return _ID
+        Else
+            If _IsDirty Then
+                Trace.WriteLine("This OU has to be saved")
+                _Connection.Update(Me)
+                SaveOperation = FMDatabase.OperationResult.Update
+            Else
+                'trace.writeline("No requirement to save this OU")
+                SaveOperation = FMDatabase.OperationResult.None
+            End If
+
+            _IsDirty = False
+            _ID = SQL_ID
+            Return _ID 'Me.ID
+        End If
+
+    End Function
+
+    ''' <summary>
+    ''' Load the OU details
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Function Load(ByRef OU As OrganisationalUnit, Optional ByVal Behaviour As DefaultBehaviour = DefaultBehaviour.LoadOnly) As Boolean
+        Dim SQL_ID As Int32 = 0
+        Dim LoadResult As FMDatabase.OperationResult
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        Try
+            If _Connection.ObjectIsValid Then
+                'trace.writeline("Loading an OU's details...")
+
+                OU = _Connection.GetOrganisationalUnitbyID(SQL_ID)
+
+                ' Set all the properties - NOTE, NOT local variables
+                Me.Budget = OU.Budget
+                Me.ChangeID = OU.ChangeID
+                Me.ClientID = OU.ClientID
+                Me.CostCode = OU.CostCode
+                Me.Custom1 = OU.Custom1
+                Me.Custom2 = OU.Custom2
+                Me.Custom3 = OU.Custom3
+                Me.Custom4 = OU.Custom4
+                Me.Custom5 = OU.Custom5
+                Me.Custom6 = OU.Custom6
+                Me.Custom7 = OU.Custom7
+                Me.Custom8 = OU.Custom8
+                Me.Custom9 = OU.Custom9
+                Me.Custom10 = OU.Custom10
+                Me.Custom11 = OU.Custom11
+                Me.Custom12 = OU.Custom12
+                Me.Custom13 = OU.Custom13
+                Me.Custom14 = OU.Custom14
+                Me.Custom15 = OU.Custom15
+                Me.Custom16 = OU.Custom16
+                Me.Custom17 = OU.Custom17
+                Me.Custom18 = OU.Custom18
+                Me.Custom19 = OU.Custom19
+                Me.Custom20 = OU.Custom20
+                Me.DefaultPersonBudget = OU.DefaultPersonBudget
+                Me.EndDate = OU.EndDate
+                Me.GUID =REDACTED
+                Me.ID = OU.ID
+                Me.Name = OU.Name
+                Me.ParentOrganisationalUnitGUID =REDACTED
+                Me.ParentOrganisationalUnitID = OU.ParentOrganisationalUnitID
+                Me.RebillingPlanID = OU.RebillingPlanID
+                Me.Silent = OU.Silent
+                Me.StartDate = OU.StartDate
+                Me.UID =REDACTED
+
+                Me.StreetAddress = OU.StreetAddress
+                Me.Suburb = OU.Suburb
+                Me.State = OU.State
+                Me.Country = OU.Country
+                Me.PostCode = OU.PostCode
+
+                _IsDirty = False
+                _HasLoaded = True
+                Return True
+            Else
+                ' Transfer the details we have to the new object
+                OU.Budget = _Budget
+                OU.ChangeID = _ChangeID
+                OU.ClientID = _ClientID
+                OU.Connection = _Connection
+                OU.CostCode = _CostCode
+                OU.Custom1 = _Custom1
+                OU.Custom2 = _Custom2
+                OU.Custom3 = _Custom3
+                OU.Custom4 = _Custom4
+                OU.Custom5 = _Custom5
+                OU.Custom6 = _Custom6
+                OU.Custom7 = _Custom7
+                OU.Custom8 = _Custom8
+                OU.Custom9 = _Custom9
+                OU.Custom10 = _Custom10
+                OU.Custom11 = _Custom11
+                OU.Custom12 = _Custom12
+                OU.Custom13 = _Custom13
+                OU.Custom14 = _Custom14
+                OU.Custom15 = _Custom15
+                OU.Custom16 = _Custom16
+                OU.Custom17 = _Custom17
+                OU.Custom18 = _Custom18
+                OU.Custom19 = _Custom19
+                OU.Custom20 = _Custom20
+                OU.DefaultPersonBudget = _DefaultPersonBudget
+                OU.EndDate = _EndDate
+                OU.GUID =REDACTED
+                OU.ID = _ID
+                OU.Name = _Name
+                OU.ParentOrganisationalUnitGUID =REDACTED
+                OU.ParentOrganisationalUnitID = ParentOrganisationalUnitID
+                OU.RebillingPlanID = _RebillingPlanID
+                OU.Silent = _Silent
+                OU.StartDate = _StartDate
+                OU.UID =REDACTED
+
+                OU.StreetAddress = _StreetAddress
+                OU.Suburb = _Suburb
+                OU.State = _State
+                OU.Country = _Country
+                OU.PostCode = _PostCode
+
+                Select Case Behaviour
+                    Case DefaultBehaviour.FailOnNotExist
+                        ' We are configured to raise an error if the OU could not be found.
+                        Err.Raise(vbObjectError + 513, GetExecutingAssembly.GetName.Name, "The Organisational Unit referenced by this UID does not exist.")
+                        _IsDirty = False
+                        _HasLoaded = False
+                        Return False
+                    Case DefaultBehaviour.LoadOrCreate
+                        ' We are configured to create the OU if it could not be found
+                        If OU.ClientID > 0 Then
+                            ' Now save it
+                            OU.ID = OU.Save(LoadResult)
+                            _HasLoaded = True
+                        Else
+                            _HasLoaded = False
+                        End If
+                        _IsDirty = False
+
+                        Return True
+                    Case DefaultBehaviour.LoadOnly
+                        _IsDirty = False
+                        If SQL_ID > 0 Then _HasLoaded = True
+                        Return False
+                End Select
+            End If
+        Catch
+            _HasLoaded = False
+            Return False
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Load the OU details
+    ''' </summary>
+    ''' <remarks></remarks>
+    Public Function Load(Optional ByVal Behaviour As DefaultBehaviour = DefaultBehaviour.LoadOnly) As Boolean
+        Dim SQL_ID As Int32 = 0
+        Dim OU As New OrganisationalUnit
+        Dim LoadResult As FMDatabase.OperationResult
+
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+        SQL_ID = _Connection.GetID(Me)
+
+        Try
+            If _Connection.ObjectIsValid Then
+                'trace.writeline("Loading an OU's details...")
+
+                OU = _Connection.GetOrganisationalUnitbyID(SQL_ID)
+
+                ' Set all the local variables
+                _Budget = OU.Budget
+                _ChangeID = OU.ChangeID
+                _ClientID = OU.ClientID
+                _CostCode = OU.CostCode
+                _Custom1 = OU.Custom1
+                _Custom2 = OU.Custom2
+                _Custom3 = OU.Custom3
+                _Custom4 = OU.Custom4
+                _Custom5 = OU.Custom5
+                _Custom6 = OU.Custom6
+                _Custom7 = OU.Custom7
+                _Custom8 = OU.Custom8
+                _Custom9 = OU.Custom9
+                _Custom10 = OU.Custom10
+                _Custom11 = OU.Custom11
+                _Custom12 = OU.Custom12
+                _Custom13 = OU.Custom13
+                _Custom14 = OU.Custom14
+                _Custom15 = OU.Custom15
+                _Custom16 = OU.Custom16
+                _Custom17 = OU.Custom17
+                _Custom18 = OU.Custom18
+                _Custom19 = OU.Custom19
+                _Custom20 = OU.Custom20
+                _DefaultPersonBudget = OU.DefaultPersonBudget
+                _EndDate = OU.EndDate
+                _GUID =REDACTED
+                _ID = OU.ID
+                _Name = OU.Name
+                _ParentOrganisationalUnitGUID =REDACTED
+                _ParentOrganisationalUnitID = OU.ParentOrganisationalUnitID
+                _RebillingPlanID = OU.RebillingPlanID
+                _Silent = OU.Silent
+                _StartDate = OU.StartDate
+                _UID =REDACTED
+
+                _StreetAddress = OU.StreetAddress
+                _Suburb = OU.Suburb
+                _State = OU.State
+                _Country = OU.Country
+                _PostCode = OU.PostCode
+
+                'trace.writeline("As we have just loaded this, set IsDirty = False")
+                _IsDirty = False
+                _HasLoaded = True
+                Return True
+            Else
+                ' Transfer the details we have to the new object
+                OU.Budget = _Budget
+                OU.ChangeID = _ChangeID
+                OU.ClientID = _ClientID
+                OU.Connection = _Connection
+                OU.CostCode = _CostCode
+                OU.Custom1 = _Custom1
+                OU.Custom2 = _Custom2
+                OU.Custom3 = _Custom3
+                OU.Custom4 = _Custom4
+                OU.Custom5 = _Custom5
+                OU.Custom6 = _Custom6
+                OU.Custom7 = _Custom7
+                OU.Custom8 = _Custom8
+                OU.Custom9 = _Custom9
+                OU.Custom10 = _Custom10
+                OU.Custom11 = _Custom11
+                OU.Custom12 = _Custom12
+                OU.Custom13 = _Custom13
+                OU.Custom14 = _Custom14
+                OU.Custom15 = _Custom15
+                OU.Custom16 = _Custom16
+                OU.Custom17 = _Custom17
+                OU.Custom18 = _Custom18
+                OU.Custom19 = _Custom19
+                OU.Custom20 = _Custom20
+                OU.DefaultPersonBudget = _DefaultPersonBudget
+                OU.EndDate = _EndDate
+                OU.GUID =REDACTED
+                OU.ID = _ID
+                OU.Name = _Name
+                OU.ParentOrganisationalUnitGUID =REDACTED
+                OU.ParentOrganisationalUnitID = ParentOrganisationalUnitID
+                OU.RebillingPlanID = _RebillingPlanID
+                OU.Silent = _Silent
+                OU.StartDate = _StartDate
+                OU.UID =REDACTED
+
+                OU.StreetAddress = _StreetAddress
+                OU.Suburb = _Suburb
+                OU.State = _State
+                OU.Country = _Country
+                OU.PostCode = _PostCode
+
+                Select Case Behaviour
+                    Case DefaultBehaviour.FailOnNotExist
+                        ' We are configured to raise an error if the OU could not be found.
+                        Err.Raise(vbObjectError + 513, GetExecutingAssembly.GetName.Name, "The Organisational Unit referenced by this UID does not exist.")
+                        _IsDirty = False
+                        _HasLoaded = False
+                        Return False
+                    Case DefaultBehaviour.LoadOrCreate
+                        ' We are configured to create the OU if it could not be found
+                        If OU.ClientID > 0 Then
+                            ' Now save it
+                            OU.ID = OU.Save(LoadResult)
+                            _HasLoaded = True
+                        Else
+                            _HasLoaded = False
+                        End If
+                        _IsDirty = False
+
+                        Return True
+                    Case DefaultBehaviour.LoadOnly
+                        _IsDirty = False
+                        If SQL_ID > 0 Then _HasLoaded = True
+                        Return False
+                End Select
+            End If
+        Catch
+            _HasLoaded = False
+            Return False
+        End Try
+
+    End Function
+
+    ''' <summary>
+    ''' Delete the OU
+    ''' </summary>
+    ''' <remarks></remarks>
+    <Obsolete("Not implemented")> _
+    Public Sub Delete()
+        Dim SQL_ID As Int32 = 0
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+        ' Find the OU
+        SQL_ID = _Connection.GetID(Me)
+
+        ' TODO: Delete the OU
+    End Sub
+
+    ''' <summary>
+    ''' Move the OU
+    ''' </summary>
+    ''' <remarks></remarks>
+    <Obsolete("Not implemented")> _
+    Public Sub Move()
+        Dim SQL_ID As Int32 = 0
+        'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+        ' Find the OU
+        SQL_ID = _Connection.GetID(Me)
+
+        ' TODO: Move the OU
+    End Sub
+
+    ''' <summary>
+    ''' Create an exact copy of the Org Unit
+    ''' </summary>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function Clone() As OrganisationalUnit
+        Dim OU_Copy As New OrganisationalUnit
+
+        OU_Copy.Budget = _Budget
+        OU_Copy.ChangeID = _ChangeID
+        OU_Copy.ClientID = _ClientID
+        OU_Copy.Connection = _Connection
+        OU_Copy.CostCode = _CostCode
+        OU_Copy.Custom1 = _Custom1
+        OU_Copy.Custom2 = _Custom2
+        OU_Copy.Custom3 = _Custom3
+        OU_Copy.Custom4 = _Custom4
+        OU_Copy.Custom5 = _Custom5
+        OU_Copy.Custom6 = _Custom6
+        OU_Copy.Custom7 = _Custom7
+        OU_Copy.Custom8 = _Custom8
+        OU_Copy.Custom9 = _Custom9
+        OU_Copy.Custom10 = _Custom10
+        OU_Copy.Custom11 = _Custom11
+        OU_Copy.Custom12 = _Custom12
+        OU_Copy.Custom13 = _Custom13
+        OU_Copy.Custom14 = _Custom14
+        OU_Copy.Custom15 = _Custom15
+        OU_Copy.Custom16 = _Custom16
+        OU_Copy.Custom17 = _Custom17
+        OU_Copy.Custom18 = _Custom18
+        OU_Copy.Custom19 = _Custom19
+        OU_Copy.Custom20 = _Custom20
+        OU_Copy.DefaultPersonBudget = _DefaultPersonBudget
+        OU_Copy.EndDate = _EndDate
+        OU_Copy.GUID =REDACTED
+        'OU_Copy.HasLoaded = _HasLoaded
+        OU_Copy.ID = _ID
+        OU_Copy.IsDirty = _IsDirty
+        OU_Copy.Name = _Name
+        OU_Copy.LDAPPath = _LDAPPath
+        OU_Copy.ParentOrganisationalUnitGUID =REDACTED
+        OU_Copy.ParentOrganisationalUnitID = _ParentOrganisationalUnitID
+        OU_Copy.RebillingPlanID = _RebillingPlanID
+        OU_Copy.Silent = _Silent
+        OU_Copy.StartDate = _StartDate
+        OU_Copy.UID =REDACTED
+
+        OU_Copy.StreetAddress = _StreetAddress
+        OU_Copy.Suburb = _Suburb
+        OU_Copy.State = _State
+        OU_Copy.Country = _Country
+        OU_Copy.PostCode = _PostCode
+
+        Return OU_Copy
+
+    End Function
+
+    'Public Function Equal(ByVal OU As OrganisationalUnit) As Boolean
+    '    Dim Result As Boolean = False
+
+    '    trace.writeline("")
+
+    '    ' Load the Comparison OU
+    '    If OU.ID = 0 Then
+    '        If OU.UID =REDACTED Then
+    '            trace.writeline("We don't have enough information to make the comparison, and must assume they are different.")
+
+    '        Else
+    '            trace.writeline("Using UID for comparison.")
+    '        End If
+    '    Else
+    '        trace.writeline("Using ID for comparison.")
+    '        OU.Load(OU, DefaultBehaviour.LoadOnly)
+    '    End If
+
+    '    Return Result
+    'End Function
+
+#End Region
+
+End Class

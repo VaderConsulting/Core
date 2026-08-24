@@ -1,0 +1,702 @@
+#Region " History "
+
+' Please choose from the following Entry types:
+' Bugfix
+' Enhancement
+' Change
+
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' Version    Date         Initials    Type          Description
+' ----------------------------------------------------------------------------------------------------------------------------------------
+' 1.1.0.1    07 Jun 11    DR          Enhancement   Based on .NET 3.5 version 1.0.15.25
+'
+#End Region
+
+Imports System.Data.SqlClient
+Imports System.Reflection.Assembly
+Imports System.Windows.Forms
+Imports Core.FleetManager.Definitions
+
+Public Class FMDatabase
+
+    Public Enum OperationResult
+        None = 0
+        Insert = 1
+        Update = 2
+    End Enum
+
+#Region " Private variables "
+
+    Private _DataConnectionString As String = ""
+    Private _ControlConnectionString As String = ""
+    Private _DefaultTablePrefix As String = ""
+    Private _SiteID As Int32 = 0
+    Private _DebuggingMode As Boolean = False
+    Private _DatabaseName As String = ""
+    Private _HostName As String = ""
+    Private _SiteLogo As String = ""
+    Private _WelcomeText As String = ""
+    Private _StyleSheet As String = ""
+    Private _HelpdeskEmail As String = ""
+    Private _HelpPhone As String = ""
+    Private _ProductName As String = ""
+    Private _SiteLogoRight As String = ""
+    Private _SiteLogoLeft As String = ""
+
+#End Region
+
+#Region " Properties "
+
+    'Public Property ClientID() As Int32
+    '    Get
+    '        'If _ClientID = 0 Then GetDefaults()
+    '        Return _ClientID
+    '    End Get
+    '    Set(ByVal value As Int32)
+    '        _ClientID = value
+    '    End Set
+    'End Property
+
+    'Public ReadOnly Property ControlConnectionString() As String
+    '    Get
+    '        Return _ControlConnectionString
+    '    End Get
+    'End Property
+    'Public Sub New()
+
+    'End Sub
+
+    'Public ReadOnly Property DataConnectionString() As String
+    '    Get
+    '        Return _DataConnectionString
+    '    End Get
+    'End Property
+
+    Public Property DefaultTablePrefix() As String
+        Get
+            Return _DefaultTablePrefix
+        End Get
+        Set(ByVal value As String)
+            _DefaultTablePrefix = value
+        End Set
+    End Property
+
+    'Public Property NetworkTypeID() As Int32
+    '    Get
+    '        'If _NetworkTypeID = 0 Then GetDefaults()
+    '        Return _NetworkTypeID
+    '    End Get
+    '    Set(ByVal value As Int32)
+    '        _NetworkTypeID = value
+    '    End Set
+    'End Property
+
+    'Public Property ServiceProviderID() As Int32
+    '    Get
+    '        'If _ServiceProviderID = 0 Then GetDefaults()
+    '        Return _ServiceProviderID
+    '    End Get
+    '    Set(ByVal value As Int32)
+    '        _ServiceProviderID = value
+    '    End Set
+    'End Property
+
+    'Public Property ServiceTypeID() As Int32
+    '    Get
+    '        'If _ServiceTypeID = 0 Then GetDefaults()
+    '        Return _ServiceTypeID
+    '    End Get
+    '    Set(ByVal value As Int32)
+    '        _ServiceTypeID = value
+    '    End Set
+    'End Property
+
+    Public ReadOnly Property SiteID() As Int32
+        Get
+            Return _SiteID
+        End Get
+    End Property
+
+    Public ReadOnly Property DataConnectionString() As String
+        Get
+            Return _DataConnectionString
+        End Get
+    End Property
+
+    Public ReadOnly Property ControlConnectionString() As String
+        Get
+            Return _ControlConnectionString
+        End Get
+    End Property
+
+    Public ReadOnly Property HostName() As String
+        Get
+            Return _HostName
+        End Get
+    End Property
+
+    Public ReadOnly Property SiteLogo() As String
+        Get
+            Return _SiteLogo
+        End Get
+    End Property
+
+    Public ReadOnly Property WelcomeText() As String
+        Get
+            Return _WelcomeText
+        End Get
+    End Property
+
+    Public ReadOnly Property StyleSheet() As String
+        Get
+            Return _StyleSheet
+        End Get
+    End Property
+
+    Public ReadOnly Property HelpdeskEmail() As String
+        Get
+            Return _HelpdeskEmail
+        End Get
+    End Property
+
+    Public ReadOnly Property HelpPhone() As String
+        Get
+            Return _HelpPhone
+        End Get
+    End Property
+
+    Public ReadOnly Property ProductName() As String
+        Get
+            Return _ProductName
+        End Get
+    End Property
+
+    Public ReadOnly Property SiteLogoRight() As String
+        Get
+            Return _SiteLogoRight
+        End Get
+    End Property
+
+    Public ReadOnly Property SiteLogoLeft() As String
+        Get
+            Return _SiteLogoLeft
+        End Get
+    End Property
+
+#End Region
+
+#Region " Constructors "
+
+    Public Sub New()
+
+    End Sub
+
+    Public Sub New(ByVal ControlDatabaseConnectionString As String, ByVal SiteID As Int32)
+        _ControlConnectionString = ControlDatabaseConnectionString
+        _DataConnectionString = GetDatabaseConnectionString2(ControlDatabaseConnectionString, SiteID)
+        _SiteID = SiteID
+    End Sub
+
+#End Region
+
+#Region " Public Methods "
+
+    Public Sub Initialize(ByVal ControlDatabaseConnectionString As String, ByVal SiteID As Int32)
+        _ControlConnectionString = ControlDatabaseConnectionString
+        _DataConnectionString = GetDatabaseConnectionString2(ControlDatabaseConnectionString, SiteID)
+        _SiteID = SiteID
+    End Sub
+
+    Private Function TranslateServerName(ByVal ConnectionString As String) As String
+        Dim NewConnectionString As String = ""
+        Dim PreviousValues() As String = ConnectionString.Split(";")
+        Dim ServerName As String = ""
+
+        ServerName = PreviousValues(0).ToLower.Replace("server=", "")
+
+        ServerName = ServerName.Replace("10.1.14.9", "APOLLO")
+        ServerName = ServerName.Replace("10.1.14.1", "APOLLO")
+        NewConnectionString = "REDACTED" & ServerName
+
+        For iCounter As Integer = 1 To PreviousValues.Length - 1
+            If NewConnectionString.Length > 0 Then
+                NewConnectionString &= ";"
+            End If
+
+            NewConnectionString &= PreviousValues(iCounter)
+        Next
+
+        Return NewConnectionString
+    End Function
+
+    ''' <summary>
+    ''' Retrieve the database connection string
+    ''' </summary>
+    ''' <param name="ControlDatabaseConnectionString"></param>
+    ''' <param name="SiteID"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetDatabaseConnectionString(ByVal ControlDatabaseConnectionString As String, ByVal SiteID As Int32) As String
+        Dim DataConnectionString As String = ""
+        Dim QueryString As String = "SELECT DatabaseDetails.ConnectionString FROM SiteDetails INNER JOIN DatabaseDetails ON SiteDetails.DatabaseID = DatabaseDetails.UID where SiteDetails.SiteID = " & CStr(SiteID)
+        Dim ReturnData As New DataSet("DataSet1")
+        Dim Adaptor As SqlDataAdapter
+        Dim DataConnection As New SqlConnection(ControlDatabaseConnectionString)
+
+        _SiteID = SiteID
+
+        OpenConnection(DataConnection)
+
+        Adaptor = New SqlDataAdapter(QueryString, DataConnection)
+        Adaptor.SelectCommand.CommandTimeout = 300
+
+        Adaptor.Fill(ReturnData)
+        Adaptor.Dispose()
+
+        If ReturnData.Tables(0).Rows.Count > 0 Then
+            DataConnectionString = ReturnData.Tables(0).Rows(0).Item(0)
+        End If
+
+        DataConnection.Close()
+        DataConnection = Nothing
+
+        Return TranslatedConnectionString(DataConnectionString)
+
+    End Function
+
+    ''' <summary>
+    ''' Retrieve the database connection string, whilst also populating the other properties
+    ''' </summary>
+    ''' <param name="ControlDatabaseConnectionString"></param>
+    ''' <param name="SiteID"></param>
+    ''' <returns></returns>
+    ''' <remarks></remarks>
+    Public Function GetDatabaseConnectionString2(ByVal ControlDatabaseConnectionString As String, ByVal SiteID As Int32) As String
+        Dim DataConnectionString As String = ""
+        Dim QueryString As String = ""
+        Dim ReturnData As New DataSet("DataSet1")
+        Dim Adaptor As SqlDataAdapter
+        Dim DataConnection As New SqlConnection(ControlDatabaseConnectionString)
+
+        _SiteID = SiteID
+
+        QueryString &= "SELECT     DatabaseDetails.ConnectionString, "
+        QueryString &= "           SiteDetails.HostName, "
+        QueryString &= "           SiteDetails.SiteLogo, "
+        QueryString &= "           SiteDetails.WelcomeText, "
+        QueryString &= "           SiteDetails.StyleSheet, "
+        QueryString &= "           SiteDetails.HelpdeskEmail, "
+        QueryString &= "           SiteDetails.HelpPhone, "
+        QueryString &= "           SiteDetails.ProductName, "
+        QueryString &= "           SiteDetails.SiteLogoRight, "
+        QueryString &= "           SiteDetails.SiteLogoLeft "
+        QueryString &= "FROM       SiteDetails INNER JOIN "
+        QueryString &= "           DatabaseDetails ON SiteDetails.DatabaseID = DatabaseDetails.UID "
+        QueryString &= "WHERE     (SiteDetails.SiteID = " & CStr(SiteID) & ")"
+
+        OpenConnection(DataConnection)
+
+        Adaptor = New SqlDataAdapter(QueryString, DataConnection)
+        Adaptor.SelectCommand.CommandTimeout = 300
+
+        Adaptor.Fill(ReturnData)
+        Adaptor.Dispose()
+
+        If ReturnData.Tables(0).Rows.Count > 0 Then
+            DataConnectionString = ReturnData.Tables(0).Rows(0).Item(0) & ""
+            _HostName = ReturnData.Tables(0).Rows(0).Item(1) & ""
+            _SiteLogo = ReturnData.Tables(0).Rows(0).Item(2) & ""
+            _WelcomeText = ReturnData.Tables(0).Rows(0).Item(3) & ""
+            _StyleSheet = ReturnData.Tables(0).Rows(0).Item(4) & ""
+            _HelpdeskEmail = ReturnData.Tables(0).Rows(0).Item(5) & ""
+            _HelpPhone = ReturnData.Tables(0).Rows(0).Item(6) & ""
+            _ProductName = ReturnData.Tables(0).Rows(0).Item(7) & ""
+            _SiteLogoRight = ReturnData.Tables(0).Rows(0).Item(8) & ""
+            _SiteLogoLeft = ReturnData.Tables(0).Rows(0).Item(9) & ""
+        End If
+
+        DataConnection.Close()
+        DataConnection = Nothing
+
+        Return TranslatedConnectionString(DataConnectionString)
+    End Function
+
+    ''' <summary>
+    ''' Execute a query, returning a dataset
+    ''' </summary>
+    ''' <param name="QueryString">The query to execute</param>
+    ''' <param name="Target">The FMDatabase object</param>
+    ''' <param name="Timeout">OPTIONAL Timeout.  Only override the default if you have no other option</param>
+    ''' <returns>Dataset</returns>
+    ''' <remarks></remarks>
+    Public Function Execute(ByVal QueryString As String, ByVal Target As FleetManagerDatabaseType, Optional ByVal Timeout As Int32 = 300) As DataSet
+        Dim ReturnData As New DataSet("DataSet1")
+        Dim DataConnection As SqlConnection = Nothing
+        Dim Adaptor As SqlDataAdapter
+
+        Select Case Target
+            Case FleetManagerDatabaseType.Control
+                DataConnection = New SqlConnection(_ControlConnectionString)
+            Case FleetManagerDatabaseType.Data
+                DataConnection = New SqlConnection(_DataConnectionString)
+        End Select
+
+        OpenConnection(DataConnection)
+
+        Adaptor = New SqlDataAdapter(QueryString, DataConnection)
+        Adaptor.SelectCommand.CommandTimeout = 300
+
+        Adaptor.Fill(ReturnData)
+        Adaptor.Dispose()
+
+        DataConnection.Close()
+        DataConnection = Nothing
+
+        Application.DoEvents()
+
+        Return ReturnData
+    End Function
+
+    ''' <summary>
+    ''' Execute a query, without returning a dataset
+    ''' </summary>
+    ''' <param name="QueryString">The query to execute</param>
+    ''' <param name="Target">The FMDatabase object</param>
+    ''' <param name="Timeout">OPTIONAL Timeout.  Only override the default if you have no other option</param>
+    ''' <remarks></remarks>
+    Public Sub ExecuteNonQuery(ByVal QueryString As String, ByVal Target As FleetManagerDatabaseType, Optional ByVal Timeout As Int32 = 300)
+        Dim DataConnection As SqlConnection = Nothing
+
+        Select Case Target
+            Case FleetManagerDatabaseType.Control
+                DataConnection = New SqlConnection(_ControlConnectionString)
+            Case FleetManagerDatabaseType.Data
+                DataConnection = New SqlConnection(_DataConnectionString)
+        End Select
+
+        ' Translate connection string to cater for running from different locations
+        '_DataConnectionString = GetTranslatedConnectionString(_DataConnectionString)
+
+        Dim DataCommand As New SqlCommand
+        DataCommand.CommandTimeout = Timeout
+
+        If DataConnection.State = ConnectionState.Closed Then DataConnection.Open()
+
+        DataCommand = New SqlCommand(QueryString, DataConnection)
+
+        DataCommand.CommandText = QueryString
+        DataCommand.ExecuteNonQuery()
+
+        DataCommand.Dispose()
+        DataConnection.Close()
+
+        DataCommand = Nothing
+        DataConnection = Nothing
+
+        Application.DoEvents()
+
+    End Sub
+
+    ''' <summary>
+    ''' Execute a Store Procedure
+    ''' </summary>
+    ''' <param name="DataCommand"></param>
+    ''' <param name="Target">The FMDatabase object</param>
+    ''' <param name="Timeout">OPTIONAL Timeout.  Only override the default if you have no other option</param>
+    ''' <remarks></remarks>
+    Public Sub ExecuteStoredProcedure(ByRef DataCommand As SqlCommand, ByVal Target As FleetManagerDatabaseType, Optional ByVal Timeout As Int32 = 300)
+        Dim DataConnection As SqlConnection = Nothing
+
+        Select Case Target
+            Case FleetManagerDatabaseType.Control
+                DataConnection = New SqlConnection(_ControlConnectionString)
+            Case FleetManagerDatabaseType.Data
+                DataConnection = New SqlConnection(_DataConnectionString)
+        End Select
+
+        ' Translate connection string to cater for running from different locations
+        '_DataConnectionString = GetTranslatedConnectionString(_DataConnectionString)
+
+        If DataConnection.State = ConnectionState.Closed Then DataConnection.Open()
+
+        DataCommand.Connection = DataConnection
+        DataCommand.CommandTimeout = Timeout
+
+        DataCommand.ExecuteScalar()
+
+        DataConnection.Close()
+
+        DataConnection = Nothing
+
+        Application.DoEvents()
+    End Sub
+
+    ''' <summary>
+    ''' Override the data connection string retrieved by the GetDatabaseConnectionString() method
+    ''' </summary>
+    ''' <param name="NewConnectionString"></param>
+    ''' <remarks>Should only be used temporarily, or for test purposes</remarks>
+    Public Sub OverrideDataConnectionString(ByVal NewConnectionString As String)
+        _DataConnectionString = NewConnectionString
+    End Sub
+
+    Public Shared Function TranslatedConnectionString(ByVal OriginalConnectionString As String) As String
+        Dim OutputConnectionString As String = OriginalConnectionString
+        Dim IpAddress As String = "" 'System.Net.Dns.GetHostAddresses(My.Computer.Name)(0).ToString
+
+        If Not My.Computer.Info.OSFullName Like "*Server*" Or System.Diagnostics.Debugger.IsAttached Then
+            ' SQL instances
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.16", "203.161.116.150") ' Zeus
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.9", "203.161.67.98")    ' Apollo
+            ' Others (PROBABLY NEVER USED AS THEY ARE WEB SERVERS)
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.10", "203.161.116.144") ' Argos
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.11", "203.161.116.145") ' ??
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.12", "203.161.116.146") ' Hermes
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.13", "203.161.116.147") ' ??
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.14", "203.161.116.148") ' Hades
+            OutputConnectionString = OutputConnectionString.Replace("10.1.14.15", "203.161.116.149") ' ??
+
+            'Debug.Print("Translated string: " & OutputConnectionString)
+
+            'If _DataConnectionString = "REDACTED" Then
+            '    _DataConnectionString = "REDACTED"
+            'End If
+        End If
+
+
+        Console.WriteLine("Translated Connection string: " & OutputConnectionString)
+        Return OutputConnectionString
+    End Function
+
+    Public Shared Function OpenConnection(ByVal Connection As Data.SqlClient.SqlConnection)
+
+        If Connection.State = ConnectionState.Closed Then
+            Try
+                Connection.Open()
+            Catch ex As Exception
+                Trace.WriteLine(ex.ToString)
+                Err.Raise(vbObjectError + 526, GetExecutingAssembly.GetName.Name, "The Database could not be opened." & vbCrLf & vbCrLf & "The actual error returned was:" & vbCrLf & ex.ToString)
+            End Try
+        End If
+
+    End Function
+
+#End Region
+
+    'Public Sub Insert(ByRef User As Person)
+    '    Dim DataConnection As New SqlConnection(ConnectionString)
+    '    Dim DataReader As SqlDataReader
+    '    Dim DataCommand As New SqlCommand
+    '    Dim QueryString As String = ""
+
+    '    If DataConnection.State = ConnectionState.Open Then
+    '        DataConnection.Close()
+    '        DataConnection.Open()
+    '    Else
+    '        DataConnection.Open()
+    '    End If
+
+    '    QueryString = " INSERT INTO Users"
+    '    QueryString &= "                       (FirstName, LastName, StartDate, ClientID, OrgUnitID, CostCode)"
+    '    QueryString &= " VALUES     ('" & _
+    '                     User.FirstName.Replace("'", "''") & "', '" & _
+    '                     User.Surname.Replace("'", "''") & "', cast('" & User.StartDate & "' as datetime), '" & _
+    '                     User.ClientID & "', '" & _
+    '                     User.OrganisationUnitID & "', '" & _
+    '                     User.CostCode.Replace("'", "''") & "') "
+    '    QueryString &= " ; SELECT SCOPE_IDENTITY() AS ID"
+
+    '    DataCommand = New SqlCommand(QueryString, DataConnection)
+
+    '    DataCommand.CommandText = QueryString
+    '    DataReader = DataCommand.ExecuteReader()
+    '    DataReader.Read()
+    '    User.UserID =REDACTED
+    '    DataReader.Close()
+
+    '    QueryString = "UPDATE Users SET UserID = "REDACTED" WHERE (UID = "REDACTED")"
+
+    '    DataCommand.CommandText = QueryString
+    '    DataCommand.ExecuteNonQuery()
+
+    '    DataConnection.Close()
+    'End Sub
+
+    'Public Sub Insert(ByRef Service As Phone)
+    '    Dim NewServiceID as Int32 = 0
+    '    Dim DataConnection As New SqlConnection(ConnectionString)
+    '    Dim DataReader As SqlDataReader = Nothing
+    '    Dim DataCommand As New SqlCommand
+    '    Dim QueryString As String = ""
+
+    '    If DataConnection.State = ConnectionState.Open Then
+    '        DataConnection.Close()
+    '        DataConnection.Open()
+    '    Else
+    '        DataConnection.Open()
+    '    End If
+
+    '    QueryString = " INSERT INTO Service"
+    '    QueryString += "            (StartDate, ServiceNumber, UserID, OrgUnitID, ClientID, ServiceType, ServiceProviderID, NetworkTypeID, CostCode)"
+    '    QueryString += " VALUES     (cast('" & Service.StartDate & "' as datetime),'" & _
+    '                     Service.Number.Replace("'", "''") & "'," & _
+    '                     Service.PersonID.ToString & "," & _
+    '                     Service.OrganisationalUnitID.ToString & "," & _
+    '                     _ClientID & "," & _
+    '                     Service.ServiceType & "," & _
+    '                     _ServiceProviderID & "," & _
+    '                     _NetworkTypeID & ",'" & _
+    '                     Service.CostCode.Replace("'", "''") & "'" & _
+    '                     ") ; SELECT SCOPE_IDENTITY() AS ID"
+
+    '    DataCommand = New SqlCommand(QueryString, DataConnection)
+
+    '    DataCommand.CommandText = QueryString
+    '    DataReader = DataCommand.ExecuteReader()
+    '    DataReader.Read()
+    '    NewServiceID = DataReader.Item(0).ToString()
+    '    DataReader.Close()
+
+    '    ' UPDATE....
+    '    'If Service.ServiceID.ToString() <> "" Then
+    '    '    QueryString = "INSERT INTO ChangeLog (UserID, Comments, ModifiedTable, ClientID) VALUES (" & Service.ServiceID & ",'User details updated by importer', 'Service', " & _ClientID & ") ; SELECT SCOPE_IDENTITY() AS ID"
+    '    '    DataCommand.CommandText = QueryString
+    '    '    DataReader = DataCommand.ExecuteReader()
+    '    '    DataReader.Read()
+
+    '    '    QueryString = "UPDATE Service SET EndDate = cast('" & Service.StartDate & "' as datetime), ChangeID = " & DataReader.Item(0).ToString() & " WHERE ServiceID = " & Service.ServiceID & " AND EndDate IS NULL"
+    '    '    DataReader.Close()
+    '    '    DataCommand.CommandText = QueryString
+    '    '    DataCommand.ExecuteNonQuery()
+
+    '    '    QueryString = "UPDATE Service SET ServiceID = " & Service.ServiceID & " WHERE (UID = "REDACTED")"
+    '    'Else
+    '    QueryString = "UPDATE Service SET ServiceID = " & NewServiceID & " WHERE (UID = "REDACTED")"
+    '    'End If
+
+    '    DataCommand.CommandText = QueryString
+    '    DataCommand.ExecuteNonQuery()
+
+    '    DataConnection.Close()
+
+    'End Sub
+
+    'Public Sub Insert(ByRef OrgUnit As OrganisationalUnit)
+    '    Dim DataConnection As New SqlConnection(ConnectionString)
+    '    Dim DataReader As SqlDataReader
+    '    Dim DataCommand As New SqlCommand
+    '    Dim QueryString As String = ""
+
+    '    If DataConnection.State = ConnectionState.Open Then
+    '        DataConnection.Close()
+    '        DataConnection.Open()
+    '    Else
+    '        DataConnection.Open()
+    '    End If
+
+    '    QueryString = " INSERT INTO ClientOrganisationUnit"
+    '    QueryString &= "                       (OrgUnitName, StartDate, ClientID, OrgUnitParent, OrgUnitCostCentre)"
+    '    QueryString &= " VALUES     ('" & _
+    '                     OrgUnit.Name.Replace("'", "''") & "'," & _
+    '                     "cast('" & OrgUnit.StartDate & "' as datetime), '" & _
+    '                     OrgUnit.ClientID & "', '" & _
+    '                     OrgUnit.ParentOrganisationalUnitID & "', '" & _
+    '                     OrgUnit.CostCode.Replace("'", "''") & "') "
+    '    QueryString &= " ; SELECT SCOPE_IDENTITY() AS ID"
+
+    '    DataCommand = New SqlCommand(QueryString, DataConnection)
+
+    '    DataCommand.CommandText = QueryString
+    '    DataReader = DataCommand.ExecuteReader()
+    '    DataReader.Read()
+    '    OrgUnit.ID = CInt(DataReader.Item(0))
+    '    DataReader.Close()
+
+    '    QueryString = "UPDATE ClientOrganisationUnit SET OrgUnitID = " & OrgUnit.ID & " WHERE (UID = "REDACTED")"
+
+    '    DataCommand.CommandText = QueryString
+    '    DataCommand.ExecuteNonQuery()
+
+    '    DataConnection.Close()
+    'End Sub
+
+    'Public Sub GetDefaults()
+    '    Dim DataConnection As New SqlConnection(ConnectionString)
+    '    Dim DataReader As SqlDataReader = Nothing
+    '    Dim DataCommand As New SqlCommand
+    '    Dim QueryString As String = ""
+
+    '   'Dim Trace As New StackTrace : trace.writeline(Space(Trace.FrameCount * 2) & "  |-> Called method: " & Me.GetType.Name & "." & System.Reflection.MethodBase.GetCurrentMethod.Name & "." & vbTab & " Calling method: " & Trace.GetFrame(1).GetMethod().Name)
+
+    '    DataConnection.Open()
+
+    '    ' -----------------------------------------------------------------------------------------------------------------------------------
+
+    '    QueryString = "SELECT TOP (1) ClientID,ISNULL(typeFilter,4) AS ServiceType FROM CurrentClientView ORDER BY ClientID"
+
+    '    DataCommand = New SqlCommand(QueryString, DataConnection)
+
+    '    DataReader = DataCommand.ExecuteReader()
+    '    If DataReader.Read() Then
+    '        _ClientID = DataReader("ClientID").ToString()
+    '        _ServiceTypeID = DataReader("ServiceType").ToString()
+    '    Else
+    '        _ClientID = 1
+    '        _ServiceTypeID = 4
+    '    End If
+    '    DataReader.Close()
+
+    '    ' -----------------------------------------------------------------------------------------------------------------------------------
+
+    '    QueryString = "SELECT TOP (1) UID FROM NetworkType WHERE ServiceType = " & _ServiceTypeID.ToString & " ORDER BY UID"
+
+    '    DataCommand = New SqlCommand(QueryString, DataConnection)
+
+    '    DataReader = DataCommand.ExecuteReader()
+    '    If DataReader.Read() Then
+    '        _NetworkTypeID = DataReader("UID").ToString()
+    '    Else
+    '        _NetworkTypeID = 1
+    '    End If
+    '    DataReader.Close()
+
+    '    ' -----------------------------------------------------------------------------------------------------------------------------------
+
+    '    QueryString = "SELECT TOP (1) UID FROM ServiceProvider WHERE ServiceType = " & _ServiceTypeID.ToString & " ORDER BY UID"
+
+    '    DataCommand = New SqlCommand(QueryString, DataConnection)
+
+    '    DataReader = DataCommand.ExecuteReader()
+    '    If DataReader.Read() Then
+    '        _ServiceProviderID = DataReader("UID").ToString()
+    '    Else
+    '        _ServiceProviderID = 1
+    '    End If
+    '    DataReader.Close()
+
+    '    ' -----------------------------------------------------------------------------------------------------------------------------------
+
+    '    QueryString = "SELECT tablePrefix FROM ServiceType WHERE UID = "REDACTED"    DataCommand = New SqlCommand(QueryString, DataConnection)
+
+    '    DataReader = DataCommand.ExecuteReader()
+    '    If DataReader.Read() Then
+    '        _DefaultTablePrefix = DataReader("tablePrefix").ToString()
+    '    Else
+    '        _DefaultTablePrefix = "fix"
+    '    End If
+    '    DataReader.Close()
+
+    '    ' -----------------------------------------------------------------------------------------------------------------------------------
+
+    '    ' Insert other reads here
+
+    '    ' -----------------------------------------------------------------------------------------------------------------------------------
+
+    '    DataConnection.Close()
+
+    '    DataCommand = Nothing
+    '    DataReader = Nothing
+    '    DataConnection = Nothing
+    'End Sub
+
+End Class

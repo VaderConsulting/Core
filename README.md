@@ -95,6 +95,10 @@ VB.NET class-library suite (Vader Consulting Core/Infrastructure) covering confi
 
 Open `Infrastructure.sln` in Visual Studio.
 
+## Requirements
+
+- Visual Studio 2008 to 2010, .NET Framework 3.5
+
 ## Attribution and provenance
 
 - **Assembly company:** Microsoft, Stratatel, Stratatel 2011, Stratatel Ltd, Vader Consulting, stratatel

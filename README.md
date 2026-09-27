@@ -101,6 +101,7 @@ Open `Infrastructure.sln` in Visual Studio.
 
 ## Attribution and provenance
 
+Working copy from my Historical Dev folder `Core`.
 - **Assembly company:** Microsoft, Stratatel, Stratatel 2011, Stratatel Ltd, Vader Consulting, stratatel
 - **Assembly copyright:** 2010, Copyright © Microsoft 2009, Copyright © Microsoft 2010, Copyright © Stratatel 2011, Copyright © Stratatel Ltd 2009, Copyright © Stratatel Ltd 2010, Copyright © Stratatel Ltd 2011, Copyright © Vader Consulting 2013, Copyright © stratatel 2008, Copyright � Stratatel Ltd 2011
 
